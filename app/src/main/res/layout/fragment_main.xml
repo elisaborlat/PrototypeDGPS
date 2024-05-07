@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -15,13 +14,6 @@
             android:layout_height="48dp"
             android:text="Log results" />
 
-        <TextView
-            android:id="@+id/textView5"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Epoch" />
-
     </LinearLayout>
 
     <LinearLayout
@@ -35,12 +27,6 @@
             android:layout_height="48dp"
             android:text="Listing results" />
 
-        <TextView
-            android:id="@+id/textView4"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="TextView" />
     </LinearLayout>
 
     <LinearLayout
@@ -55,13 +41,27 @@
             android:layout_weight="0"
             android:text="Log RINEX" />
 
-        <TextView
-            android:id="@+id/textView6"
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/button_start_log"
+            android:layout_width="218dp"
+            android:layout_height="wrap_content"
+            android:text="Start Log"
+            android:enabled="false"/>
+
+        <Button
+            android:id="@+id/button_stop_send"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="TextView" />
-
+            android:text="Stop and Send"
+            android:enabled="false"/>
     </LinearLayout>
 
 </LinearLayout>

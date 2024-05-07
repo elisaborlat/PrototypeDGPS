@@ -1,6 +1,6 @@
 package com.example.prototypedgps;
 
-import androidx.annotation.NonNull;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -16,10 +16,9 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.view.MenuItem;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.navigation.NavigationBarView;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -62,22 +61,17 @@ public class MainActivity extends AppCompatActivity {
         fragmentMap.put(R.id.navigation_home, new HomeFragment());
         fragmentMap.put(R.id.navigation_status, new StatusFragment());
         fragmentMap.put(R.id.navigation_notifications, new BaseFragment());
-        navigationView.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
-            @Override
-            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-                Fragment fragment = fragmentMap.get(item.getItemId());
-                if (fragment != null) {
-                    fragmentManager.beginTransaction()
-                            .replace(R.id.fragment_container, fragment, null)
-                            .setReorderingAllowed(true)
-                            .commit();
-                    return true;
-                }
-                return false;
+        navigationView.setOnItemSelectedListener(item -> {
+            Fragment fragment = fragmentMap.get(item.getItemId());
+            if (fragment != null) {
+                fragmentManager.beginTransaction()
+                        .replace(R.id.fragment_container, fragment, null)
+                        .setReorderingAllowed(true)
+                        .commit();
+                return true;
             }
+            return false;
         });
-
-
 
     }
 
