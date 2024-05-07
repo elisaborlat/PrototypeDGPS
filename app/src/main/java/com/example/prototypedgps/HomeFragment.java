@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 
 import androidx.annotation.NonNull;
@@ -14,10 +15,15 @@ import com.example.prototypedgps.databinding.FragmentMainBinding;
 
 import java.util.stream.Stream;
 
-
 public class HomeFragment extends Fragment {
 
     private FragmentMainBinding binding;
+
+    private FileLogger mFileLogger;
+
+    public HomeFragment(FileLogger fileLogger) {
+        mFileLogger = fileLogger;
+    }
 
 
     @Override
@@ -26,18 +32,21 @@ public class HomeFragment extends Fragment {
                               Bundle savedInstanceState) {
         binding = FragmentMainBinding.inflate(inflater, container, false);
 
+        FileLogger currentFileLogger = mFileLogger;
+
 
         binding.buttonStartLog.setOnClickListener(v -> {
-            // Handle button click logic when enabled
+            Toast.makeText(getContext(), "Starting log...", Toast.LENGTH_LONG).show();
+            mFileLogger.startNewLog();
             binding.buttonStartLog.setEnabled(false);
             binding.buttonStopSend.setEnabled(true);
         });
 
 
         binding.buttonStopSend.setOnClickListener(v -> {
+            mFileLogger.send();
             binding.buttonStopSend.setEnabled(false);
-            boolean anySwitchOn = Stream.of(binding.switch1.isChecked(), binding.switch2.isChecked(), binding.switch4.isChecked()).anyMatch(Boolean::booleanValue);
-            binding.buttonStartLog.setEnabled(anySwitchOn);
+            binding.buttonStartLog.setEnabled(anySwitchOn());
         }
         );
 
@@ -45,9 +54,16 @@ public class HomeFragment extends Fragment {
             if (isChecked) {
                 binding.buttonStartLog.setEnabled(true);
             } else {
-                if (!binding.switch2.isChecked() && !binding.switch4.isChecked()){
-                    binding.buttonStartLog.setEnabled(false);
-                }
+                binding.buttonStartLog.setEnabled(anySwitchOn());
+            }
+        });
+
+        binding.switchGnssMeasurement.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                binding.buttonStartLog.setEnabled(true);
+            }
+            else {
+                binding.buttonStartLog.setEnabled(anySwitchOn());
             }
         });
 
@@ -55,9 +71,7 @@ public class HomeFragment extends Fragment {
             if (isChecked) {
                 binding.buttonStartLog.setEnabled(true);
             } else {
-                if (!binding.switch1.isChecked() && !binding.switch4.isChecked()){
-                    binding.buttonStartLog.setEnabled(false);
-                }
+                binding.buttonStartLog.setEnabled(anySwitchOn());
             }
         });
 
@@ -65,14 +79,18 @@ public class HomeFragment extends Fragment {
             if (isChecked) {
                 binding.buttonStartLog.setEnabled(true);
             } else {
-                if (!binding.switch1.isChecked() && !binding.switch2.isChecked()){
-                    binding.buttonStartLog.setEnabled(false);
-                }
-
+                binding.buttonStartLog.setEnabled(anySwitchOn());
             }
         });
 
         return binding.getRoot();
+    }
+
+    private boolean anySwitchOn(){
+        return Stream.of(binding.switch1.isChecked(),
+                binding.switch2.isChecked(),
+                binding.switch4.isChecked(),
+                binding.switchGnssMeasurement.isChecked()).anyMatch(Boolean::booleanValue);
     }
 
     @Override
@@ -80,4 +98,5 @@ public class HomeFragment extends Fragment {
         super.onDestroyView();
         binding = null;
     }
+
 }

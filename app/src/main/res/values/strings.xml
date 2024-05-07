@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">PrototypeDGPS</string>
+    <string name="app_version">v2.0.0.1</string>
     <string name="dgps">DGPS</string>
     <string name="dashboard">Dashboard</string>
     <string name="notifications">Notifications</string>

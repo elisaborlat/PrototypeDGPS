@@ -25,6 +25,7 @@ import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
+    private MeasurementProvider mMeasurementProvider;
     private static final int LOCATION_REQUEST_ID = 1;
 
     private static final String[] REQUIRED_PERMISSIONS = {
@@ -47,18 +48,28 @@ public class MainActivity extends AppCompatActivity {
             showLocationDisabledAlert();
         }
 
+        // Create MeasurementProvider
+        FileLogger mFileLogger = new FileLogger(this);
+        HomeFragment homeFragment = new HomeFragment(mFileLogger);
+        mMeasurementProvider = new MeasurementProvider(
+                getApplicationContext(),
+                mFileLogger);
+
+        mMeasurementProvider.registerMeasurements();
+        mMeasurementProvider.registerStatus();
+
         // The fragmentManager need to be created juste once
         // Load default Fragment
         FragmentManager fragmentManager = getSupportFragmentManager();
         fragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, new HomeFragment(), null)
+                .replace(R.id.fragment_container, homeFragment, null)
                 .setReorderingAllowed(true)
                 .commit();
 
         // Navigation View
         BottomNavigationView navigationView = findViewById(R.id.bottom_nav);
         Map<Integer, Fragment> fragmentMap = new HashMap<>();
-        fragmentMap.put(R.id.navigation_home, new HomeFragment());
+        fragmentMap.put(R.id.navigation_home, homeFragment);
         fragmentMap.put(R.id.navigation_status, new StatusFragment());
         fragmentMap.put(R.id.navigation_notifications, new BaseFragment());
         navigationView.setOnItemSelectedListener(item -> {
@@ -73,7 +84,11 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
+
+
     }
+
+
 
     private boolean hasPermissions(Activity activity) {
         for (String p : REQUIRED_PERMISSIONS) {
@@ -107,4 +122,9 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    @Override
+    protected void onDestroy() {
+        mMeasurementProvider.unregisterAll();
+        super.onDestroy();
+    }
 }
