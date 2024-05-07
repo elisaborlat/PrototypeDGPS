@@ -50,7 +50,7 @@
         android:orientation="horizontal">
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switch4"
+            android:id="@+id/switchRinex"
             android:layout_width="208dp"
             android:layout_height="48dp"
             android:layout_weight="0"

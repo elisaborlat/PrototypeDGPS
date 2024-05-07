@@ -50,10 +50,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Create MeasurementProvider
         FileLogger mFileLogger = new FileLogger(this);
-        HomeFragment homeFragment = new HomeFragment(mFileLogger);
+        RinexLogger mRinexLogger = new RinexLogger(this);
+        HomeFragment homeFragment = new HomeFragment(mFileLogger,mRinexLogger);
         mMeasurementProvider = new MeasurementProvider(
                 getApplicationContext(),
-                mFileLogger);
+                mFileLogger,
+                mRinexLogger);
 
         mMeasurementProvider.registerMeasurements();
         mMeasurementProvider.registerStatus();

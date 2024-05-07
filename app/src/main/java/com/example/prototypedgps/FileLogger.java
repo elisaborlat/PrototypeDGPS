@@ -44,7 +44,9 @@ import java.util.Locale;
 public class FileLogger implements MeasurementListener {
 
     private static final String TAG = "FileLogger";
-    private static final String FILE_PREFIX = "gnss_log";
+    private static final String FOLDER_PREFIX = "gnss_log";
+
+    private static final String FILE_PREFIX = "raw";
     private static final String ERROR_WRITING_FILE = "Problem writing to file.";
     private static final String COMMENT_START = "# ";
     private static final char RECORD_DELIMITER = ',';
@@ -69,7 +71,7 @@ public class FileLogger implements MeasurementListener {
             File baseDirectory;
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
-                baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FILE_PREFIX);
+                baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
                 baseDirectory.mkdirs();
             } else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
                 logError("Cannot write to external storage.");

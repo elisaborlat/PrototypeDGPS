@@ -20,9 +20,11 @@ public class HomeFragment extends Fragment {
     private FragmentMainBinding binding;
 
     private FileLogger mFileLogger;
+    private RinexLogger mRinexLogger;
 
-    public HomeFragment(FileLogger fileLogger) {
+    public HomeFragment(FileLogger fileLogger, RinexLogger rinexLogger) {
         mFileLogger = fileLogger;
+        mRinexLogger = rinexLogger;
     }
 
 
@@ -32,19 +34,30 @@ public class HomeFragment extends Fragment {
                               Bundle savedInstanceState) {
         binding = FragmentMainBinding.inflate(inflater, container, false);
 
-        FileLogger currentFileLogger = mFileLogger;
-
 
         binding.buttonStartLog.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Starting log...", Toast.LENGTH_LONG).show();
+            if (binding.switchRinex.isChecked()) {
+                mRinexLogger.startNewLog();
+                Toast.makeText(getContext(), "Starting log...", Toast.LENGTH_LONG).show();
+            }
+
+            if (binding.switchGnssMeasurement.isChecked()) {
             mFileLogger.startNewLog();
+                Toast.makeText(getContext(), "Starting log...", Toast.LENGTH_LONG).show();
+            }
+
             binding.buttonStartLog.setEnabled(false);
             binding.buttonStopSend.setEnabled(true);
         });
 
 
         binding.buttonStopSend.setOnClickListener(v -> {
-            mFileLogger.send();
+            if (binding.switchGnssMeasurement.isChecked()) {
+                    mFileLogger.send();
+            }
+            if (binding.switchRinex.isChecked()) {
+                mRinexLogger.send();
+                    }
             binding.buttonStopSend.setEnabled(false);
             binding.buttonStartLog.setEnabled(anySwitchOn());
         }
@@ -75,7 +88,7 @@ public class HomeFragment extends Fragment {
             }
         });
 
-        binding.switch4.setOnCheckedChangeListener((buttonView, isChecked) -> {
+        binding.switchRinex.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 binding.buttonStartLog.setEnabled(true);
             } else {
@@ -89,7 +102,7 @@ public class HomeFragment extends Fragment {
     private boolean anySwitchOn(){
         return Stream.of(binding.switch1.isChecked(),
                 binding.switch2.isChecked(),
-                binding.switch4.isChecked(),
+                binding.switchRinex.isChecked(),
                 binding.switchGnssMeasurement.isChecked()).anyMatch(Boolean::booleanValue);
     }
 
