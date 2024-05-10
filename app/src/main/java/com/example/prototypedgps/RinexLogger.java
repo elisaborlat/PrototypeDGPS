@@ -75,6 +75,7 @@ public class RinexLogger implements MeasurementListener {
     /** Start a new file logging process. */
     public void startNewLog() {
         synchronized (mFileLock) {
+            firstMes=true;
             rinexCounter=0;
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
@@ -166,7 +167,6 @@ public class RinexLogger implements MeasurementListener {
             }
                 try {
                     String measurementStream = gnssMeasurementsEventToString(event);
-                    System.out.println("RinexLogger|Write mes");
                     mFileWriter.write(measurementStream);
 
                     rinexCounter ++;
@@ -245,6 +245,7 @@ public class RinexLogger implements MeasurementListener {
 
         // EPOCH
         GnssClock gnssClock = event.getClock();
+
 
         long gpsTimeNanos = (long) (gnssClock.getTimeNanos() - (gnssClock.getFullBiasNanos() + gnssClock.getBiasNanos()));
         LocalDateTime gpsEpoch = LocalDateTime.of(1980, Month.JANUARY, 6, 0, 0, 0);
@@ -408,14 +409,14 @@ public class RinexLogger implements MeasurementListener {
         }
     }
 
-    public class RinexDate {
+    public static class RinexDate {
 
-        private int annee;
-        private int mois;
-        private int jour;
-        private int heure;
-        private int minute;
-        private float seconde;
+        private final int annee;
+        private final int mois;
+        private final int jour;
+        private final int heure;
+        private final int minute;
+        private final float seconde;
 
         public RinexDate(int annee, int mois, int jour, int heure, int minute, float seconde) {
             this.annee = annee;

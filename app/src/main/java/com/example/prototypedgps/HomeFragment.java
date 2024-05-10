@@ -25,10 +25,7 @@ public class HomeFragment extends Fragment {
     private final HomeUIFragmentComponent mUiComponent = new HomeUIFragmentComponent();
 
 
-    public HomeFragment(FileLogger fileLogger, RinexLogger rinexLogger) {
-        mFileLogger = fileLogger;
-        mRinexLogger = rinexLogger;
-        mRinexLogger.setMainActivity(getActivity());
+    public HomeFragment() {
     }
 
 
@@ -115,6 +112,15 @@ public class HomeFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    public void setFileLogger(FileLogger mFileLogger) {
+        this.mFileLogger = mFileLogger;
+    }
+
+    public void setRinexLogger(RinexLogger mRinexLogger) {
+        this.mRinexLogger = mRinexLogger;
+        mRinexLogger.setMainActivity(getActivity());
     }
 
     public class HomeUIFragmentComponent{

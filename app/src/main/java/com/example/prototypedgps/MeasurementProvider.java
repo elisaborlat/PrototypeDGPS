@@ -3,6 +3,7 @@ package com.example.prototypedgps;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.GnssClock;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssNavigationMessage;
 import android.location.GnssStatus;
@@ -10,7 +11,6 @@ import android.location.LocationManager;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import java.util.Arrays;
 import java.util.List;
@@ -35,8 +35,14 @@ public class MeasurementProvider {
             new GnssMeasurementsEvent.Callback() {
                 @Override
                 public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
-                    for (MeasurementListener logger : mListeners) {
-                        logger.onGnssMeasurementsReceived(event);
+
+                    GnssClock gnssClock = event.getClock();
+
+                    // Check that the receiver have estimate GPS time
+                    if (gnssClock.hasFullBiasNanos()) {
+                        for (MeasurementListener logger : mListeners) {
+                            logger.onGnssMeasurementsReceived(event);
+                        }
                     }
 
                 }
@@ -46,6 +52,7 @@ public class MeasurementProvider {
             new GnssNavigationMessage.Callback() {
                 @Override
                 public void onGnssNavigationMessageReceived(GnssNavigationMessage navigationMessage) {
+
                     for (MeasurementListener logger : mListeners) {
                         logger.onGnssNavigationMessageReceived(navigationMessage);
                     }

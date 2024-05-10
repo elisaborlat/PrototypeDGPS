@@ -17,15 +17,17 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
 
+import com.example.pseudorange.EphemerisManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
 
     private MeasurementProvider mMeasurementProvider;
+
     private static final int LOCATION_REQUEST_ID = 1;
 
     private static final String[] REQUIRED_PERMISSIONS = {
@@ -48,21 +50,40 @@ public class MainActivity extends AppCompatActivity {
             showLocationDisabledAlert();
         }
 
-        // Create MeasurementProvider
+        // Init EphemerisManager
+        EphemerisManager mEphemerisManager = new EphemerisManager();
+
+        // Init BaseStation
+        BaseStation mBaseStation = new BaseStation();
+        mBaseStation.registerRtcmMsg();
+
+        // Init RealTimePositionCalculator
+        RealTimePositionCalculator mRealTimePositionCalculator = new RealTimePositionCalculator(mBaseStation, mEphemerisManager);
+
         FileLogger mFileLogger = new FileLogger(this);
         RinexLogger mRinexLogger = new RinexLogger(this);
-        HomeFragment homeFragment = new HomeFragment(mFileLogger,mRinexLogger);
+
+        // Init MeasurementProvider
         mMeasurementProvider = new MeasurementProvider(
                 getApplicationContext(),
                 mFileLogger,
-                mRinexLogger);
+                mRinexLogger,
+                mRealTimePositionCalculator);
 
         mMeasurementProvider.registerMeasurements();
         mMeasurementProvider.registerStatus();
 
+
+
+
+
+        //Set HomeFragment
+        HomeFragment homeFragment = new HomeFragment();
+        homeFragment.setFileLogger(mFileLogger);
+        homeFragment.setRinexLogger(mRinexLogger);
         // The fragmentManager need to be created juste once
-        // Load default Fragment
         FragmentManager fragmentManager = getSupportFragmentManager();
+        // Load default Fragment
         fragmentManager.beginTransaction()
                 .replace(R.id.fragment_container, homeFragment, null)
                 .setReorderingAllowed(true)
@@ -85,11 +106,7 @@ public class MainActivity extends AppCompatActivity {
             }
             return false;
         });
-
-
-
     }
-
 
 
     private boolean hasPermissions(Activity activity) {

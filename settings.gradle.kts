@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PrototypeDGPS"
 include(":app")
- 
+include(":pseudorange")
