@@ -1,5 +1,6 @@
 package com.example.prototypedgps;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,10 +22,13 @@ public class HomeFragment extends Fragment {
 
     private FileLogger mFileLogger;
     private RinexLogger mRinexLogger;
+    private final HomeUIFragmentComponent mUiComponent = new HomeUIFragmentComponent();
+
 
     public HomeFragment(FileLogger fileLogger, RinexLogger rinexLogger) {
         mFileLogger = fileLogger;
         mRinexLogger = rinexLogger;
+        mRinexLogger.setMainActivity(getActivity());
     }
 
 
@@ -32,32 +36,33 @@ public class HomeFragment extends Fragment {
     public View onCreateView (@NonNull LayoutInflater inflater,
                               ViewGroup container,
                               Bundle savedInstanceState) {
+
+        if (mRinexLogger != null) {
+            mRinexLogger.setUiFragmentComponent(mUiComponent);
+        }
+
+
         binding = FragmentMainBinding.inflate(inflater, container, false);
 
-
         binding.buttonStartLog.setOnClickListener(v -> {
-            if (binding.switchRinex.isChecked()) {
-                mRinexLogger.startNewLog();
-                Toast.makeText(getContext(), "Starting log...", Toast.LENGTH_LONG).show();
-            }
-
-            if (binding.switchGnssMeasurement.isChecked()) {
-            mFileLogger.startNewLog();
-                Toast.makeText(getContext(), "Starting log...", Toast.LENGTH_LONG).show();
-            }
 
             binding.buttonStartLog.setEnabled(false);
             binding.buttonStopSend.setEnabled(true);
+            Toast.makeText(getContext(), "Starting log...", Toast.LENGTH_LONG).show();
+
+            if (binding.switchRinex.isChecked()) {
+                mRinexLogger.startNewLog();
+
+            }
+
+            if (binding.switchGnssMeasurement.isChecked()) {
+                mFileLogger.startNewLog();
+            }
         });
 
-
         binding.buttonStopSend.setOnClickListener(v -> {
-            if (binding.switchGnssMeasurement.isChecked()) {
                     mFileLogger.send();
-            }
-            if (binding.switchRinex.isChecked()) {
-                mRinexLogger.send();
-                    }
+                    mRinexLogger.send();
             binding.buttonStopSend.setEnabled(false);
             binding.buttonStartLog.setEnabled(anySwitchOn());
         }
@@ -111,5 +116,15 @@ public class HomeFragment extends Fragment {
         super.onDestroyView();
         binding = null;
     }
+
+    public class HomeUIFragmentComponent{
+        public void incrementCounter(int counter) {
+            Activity activity = getActivity();
+            assert activity != null;
+            String text = counter + " epochs";
+            activity.runOnUiThread(() -> binding.textView.setText(text));
+        }
+    }
+
 
 }

@@ -61,13 +61,17 @@ public class FileLogger implements MeasurementListener {
     private BufferedWriter mFileWriter;
     private File mFile;
 
+
     public FileLogger(Context context) {
         this.mContext = context;
     }
 
     /** Start a new file logging process. */
     public void startNewLog() {
+        System.out.println("debug| FileLogger startnewlog...");
         synchronized (mFileLock) {
+
+            System.out.println("debug FileLogger| lock mFileLock");
             File baseDirectory;
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
@@ -84,7 +88,7 @@ public class FileLogger implements MeasurementListener {
             SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
             Date now = new Date();
             String fileName = String.format("%s_%s.txt", FILE_PREFIX, formatter.format(now));
-            File currentFile = new File(baseDirectory, fileName);
+            File currentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
             String currentFilePath = currentFile.getAbsolutePath();
             BufferedWriter currentFileWriter;
             try {
@@ -153,6 +157,7 @@ public class FileLogger implements MeasurementListener {
 
             if (mFileWriter != null) {
                 try {
+                    System.out.println("debug| FileWriter close");
                     mFileWriter.close();
                 } catch (IOException e) {
                     logException("Unable to close all file streams.", e);
@@ -162,7 +167,8 @@ public class FileLogger implements MeasurementListener {
 
             mFile = currentFile;
             mFileWriter = currentFileWriter;
-            Toast.makeText(mContext, "File opened: " + currentFilePath, Toast.LENGTH_SHORT).show();
+            System.out.println("FileLogger|mFileWriter");
+            //Toast.makeText(mContext, "File opened: " + currentFilePath, Toast.LENGTH_SHORT).show();
 
             // To make sure that files do not fill up the external storage:
             // - Remove all empty files
@@ -180,6 +186,8 @@ public class FileLogger implements MeasurementListener {
                 }
             }
         }
+        System.out.println("debug| FileLogger lock free.");
+        System.out.println("debug| FileLogger, mFileWriter"+ mFileWriter);
     }
 
     /**
@@ -187,6 +195,7 @@ public class FileLogger implements MeasurementListener {
      * new log is started when calling this function.
      */
     public void send() {
+
         if (mFile == null) {
             return;
         }
@@ -194,6 +203,9 @@ public class FileLogger implements MeasurementListener {
             try {
                 mFileWriter.flush();
                 mFileWriter.close();
+                System.out.println("debug FileLogger|FileWriter has been closed");
+                System.out.println("debug FileLogger| Contain :" +mFileWriter);
+                System.out.println("debug FileLogger|mFile :"+mFile.getPath());
                 mFileWriter = null;
             } catch (IOException e) {
                 logException("Unable to close all file streams.", e);
@@ -370,12 +382,12 @@ public class FileLogger implements MeasurementListener {
 
     private void logException(String errorMessage, Exception e) {
         Log.e(MeasurementProvider.TAG + TAG, errorMessage, e);
-        Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
+        //Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
     }
 
     private void logError(String errorMessage) {
         Log.e(MeasurementProvider.TAG + TAG, errorMessage);
-        Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
+        //Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
     }
 
     /**

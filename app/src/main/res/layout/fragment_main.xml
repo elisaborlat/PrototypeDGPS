@@ -56,6 +56,12 @@
             android:layout_weight="0"
             android:text="Log RINEX" />
 
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0" />
+
     </LinearLayout>
 
     <LinearLayout

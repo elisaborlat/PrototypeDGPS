@@ -12,6 +12,8 @@ import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.fragment.app.FragmentActivity;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileFilter;
@@ -54,6 +56,18 @@ public class RinexLogger implements MeasurementListener {
     private static  double fullBiasNanos = 1.0e-9,BiasNanos = 1.0e-9;
 
 
+
+
+    private HomeFragment.HomeUIFragmentComponent mUiFragmentComponent;
+
+    private int rinexCounter;
+
+    public synchronized void setUiFragmentComponent(HomeFragment.HomeUIFragmentComponent value) {
+        mUiFragmentComponent = value;
+    }
+    public void setMainActivity(FragmentActivity activity) {
+    }
+
     public RinexLogger(Context context) {
         this.mContext = context;
     }
@@ -61,11 +75,11 @@ public class RinexLogger implements MeasurementListener {
     /** Start a new file logging process. */
     public void startNewLog() {
         synchronized (mFileLock) {
-            File baseDirectory;
+            rinexCounter=0;
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
-                baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
-                baseDirectory.mkdirs();
+                //baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
+                //baseDirectory.mkdirs();
             } else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
                 logError("Cannot write to external storage.");
                 return;
@@ -77,7 +91,7 @@ public class RinexLogger implements MeasurementListener {
             SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
             Date now = new Date();
             String fileName = String.format("%s_%s.txt", FILE_PREFIX, formatter.format(now));
-            File currentFile = new File(baseDirectory, fileName);
+            File currentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
             String currentFilePath = currentFile.getAbsolutePath();
 
 
@@ -105,6 +119,7 @@ public class RinexLogger implements MeasurementListener {
 
             // To make sure that files do not fill up the external storage:
             // - Remove all empty files
+            /**
             FileFilter filter = new RinexLogger.FileToDeleteFilter(mFile);
             for (File existingFile : baseDirectory.listFiles(filter)) {
                 existingFile.delete();
@@ -117,7 +132,7 @@ public class RinexLogger implements MeasurementListener {
                 for (int i = 0; i < filesToDeleteCount; ++i) {
                     existingFiles[i].delete();
                 }
-            }
+            }**/
         }
     }
 
@@ -144,14 +159,20 @@ public class RinexLogger implements MeasurementListener {
 
     @Override
     public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
-        System.out.println("RinexLogger");
+
         synchronized (mFileLock) {
             if (mFileWriter == null) {
                 return;
             }
                 try {
                     String measurementStream = gnssMeasurementsEventToString(event);
+                    System.out.println("RinexLogger|Write mes");
                     mFileWriter.write(measurementStream);
+
+                    rinexCounter ++;
+                    if (mUiFragmentComponent != null) {
+                        mUiFragmentComponent.incrementCounter(rinexCounter);
+                    }
                 } catch (IOException e) {
                     logException(ERROR_WRITING_FILE, e);
                 }
@@ -304,6 +325,7 @@ public class RinexLogger implements MeasurementListener {
             Calendar calendar = Calendar.getInstance();
             String header = rinexHeader(calendar, startTime);
             writeRinexHeader(header);
+            System.out.println("RinexLogger|Write Header");
             firstMes = false;
         }
         return builder.toString();
@@ -376,6 +398,9 @@ public class RinexLogger implements MeasurementListener {
             try {
                 mFileWriter.flush();
                 mFileWriter.close();
+                System.out.println("RinexLogger|FileWriter has been closed");
+                System.out.println("RinexLogger| Contain :" +mFileWriter);
+                System.out.println("RinexLogger|mFile :"+mFile.getPath());
                 mFileWriter = null;
             } catch (IOException e) {
                 logException("Unable to close all file streams.", e);
@@ -469,5 +494,6 @@ public class RinexLogger implements MeasurementListener {
             return pathname.length() < MINIMUM_USABLE_FILE_SIZE_BYTES;
         }
     }
+
 
 }
