@@ -21,12 +21,21 @@ import com.example.pseudorange.EphemerisManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity{
 
     private MeasurementProvider mMeasurementProvider;
+
+    // Init EphemerisManager
+    private final EphemerisManager mEphemerisManager = new EphemerisManager();
 
     private static final int LOCATION_REQUEST_ID = 1;
 
@@ -50,9 +59,6 @@ public class MainActivity extends AppCompatActivity{
             showLocationDisabledAlert();
         }
 
-        // Init EphemerisManager
-        EphemerisManager mEphemerisManager = new EphemerisManager();
-
         // Init BaseStation
         BaseStation mBaseStation = new BaseStation();
         mBaseStation.registerRtcmMsg();
@@ -73,14 +79,14 @@ public class MainActivity extends AppCompatActivity{
         mMeasurementProvider.registerMeasurements();
         mMeasurementProvider.registerStatus();
 
-
-
-
-
         //Set HomeFragment
         HomeFragment homeFragment = new HomeFragment();
         homeFragment.setFileLogger(mFileLogger);
         homeFragment.setRinexLogger(mRinexLogger);
+        homeFragment.setRealTimePositionCalculator(mRealTimePositionCalculator);
+        homeFragment.setBaseStation(mBaseStation);
+
+
         // The fragmentManager need to be created juste once
         FragmentManager fragmentManager = getSupportFragmentManager();
         // Load default Fragment
@@ -106,8 +112,54 @@ public class MainActivity extends AppCompatActivity{
             }
             return false;
         });
+
+        // Load last ephemeris
+        FileInputStream fis;
+        try {
+            fis = openFileInput("data.txt");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append("\n");
+            }
+            mEphemerisManager.loadLastEph(sb);
+            System.out.println("Data have been load : data.txt");
+            fis.close();
+        } catch (FileNotFoundException e) {
+            System.out.println("File data.txt does not exist because it is the first execution of the app.");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Storage of current ephemeris
+        try {
+            FileOutputStream fos = openFileOutput("data.txt", Context.MODE_PRIVATE);
+            String s = mEphemerisManager.saveDataToFile(fos);
+            System.out.println("onPause| Data have been storage : data.txt");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        mMeasurementProvider.unregisterAll();
+        super.onDestroy();
+    }
 
     private boolean hasPermissions(Activity activity) {
         for (String p : REQUIRED_PERMISSIONS) {
@@ -127,23 +179,17 @@ public class MainActivity extends AppCompatActivity{
     // Display a pop-up window to inform the user
     private void showLocationDisabledAlert() {
         new AlertDialog.Builder(this)
-                .setTitle("Localisation désactivée")
-                .setMessage("Pour utiliser cette application, veuillez activer la localisation.")
-                .setPositiveButton("Paramètres", (dialog, which) -> {
+                .setTitle("Deactivated location")
+                .setMessage("To use this application, please activate localisation.")
+                .setPositiveButton("Settings", (dialog, which) -> {
                     // Open the location settings
                     Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                     startActivity(intent);
                 })
-                .setNegativeButton("Annuler", (dialog, which) -> {
+                .setNegativeButton("Cancel", (dialog, which) -> {
                     // Close the application or perform other necessary actions
                     // finish();
                 })
                 .show();
-    }
-
-    @Override
-    protected void onDestroy() {
-        mMeasurementProvider.unregisterAll();
-        super.onDestroy();
     }
 }

@@ -8,6 +8,12 @@ public class Constants {
     // Ellipsoid flattening GRS80
     public static final double ELL_F_GRS80 = 1/299.1528128;
 
+    // Ellipsoid semi-major axis [m] Bessel
+    public static final double ELL_A_Bessel =6377397.155;
+
+    // Ellipsoid flattening Bessel
+    public static final double ELL_F_Bessel = 1/299.1528128;
+
     // Speed of Light [m/s]
     public static final double SPEED_OF_LIGHT = 299792458.0;
 

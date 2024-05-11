@@ -6,7 +6,7 @@
         android:icon="@drawable/ic_position" />
     <item
         android:id="@+id/navigation_status"
-        android:title="@string/dashboard"
+        android:title="Status"
         android:icon="@drawable/ic_position" />
     <item
         android:id="@+id/navigation_notifications"

@@ -2,6 +2,9 @@ package com.example.prototypedgps;
 
 import android.util.Log;
 
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
 
@@ -177,7 +180,8 @@ public class BaseStation {
                             for (int i = 0; i < headerBuffer.length; i++) {
                                 headerBuffer[i] = inputStream.read();
                                 if (headerBuffer[i] != correctHeader[i]) {
-//                                    mUiBaseStation.addText("Connexion établie");
+
+//
 
                                     break;
                                 }

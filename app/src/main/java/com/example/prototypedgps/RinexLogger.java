@@ -55,12 +55,8 @@ public class RinexLogger implements MeasurementListener {
     Boolean set_clockbias = false;
     private static  double fullBiasNanos = 1.0e-9,BiasNanos = 1.0e-9;
 
-
-
-
     private HomeFragment.HomeUIFragmentComponent mUiFragmentComponent;
 
-    private int rinexCounter;
 
     public synchronized void setUiFragmentComponent(HomeFragment.HomeUIFragmentComponent value) {
         mUiFragmentComponent = value;
@@ -76,7 +72,7 @@ public class RinexLogger implements MeasurementListener {
     public void startNewLog() {
         synchronized (mFileLock) {
             firstMes=true;
-            rinexCounter=0;
+            mUiFragmentComponent.setRinexCounter(0);
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
                 //baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
@@ -169,9 +165,8 @@ public class RinexLogger implements MeasurementListener {
                     String measurementStream = gnssMeasurementsEventToString(event);
                     mFileWriter.write(measurementStream);
 
-                    rinexCounter ++;
                     if (mUiFragmentComponent != null) {
-                        mUiFragmentComponent.incrementCounter(rinexCounter);
+                        mUiFragmentComponent.incrementRinexCounter();
                     }
                 } catch (IOException e) {
                     logException(ERROR_WRITING_FILE, e);

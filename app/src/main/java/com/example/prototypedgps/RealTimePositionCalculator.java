@@ -16,6 +16,7 @@ import com.example.pseudorange.GpsTime;
 
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.BlockRealMatrix;
+import org.apache.commons.math3.linear.MatrixDimensionMismatchException;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.SingularValueDecomposition;
 
@@ -37,6 +38,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
         Boolean setClockBias = false;
         private static  double fullBiasNanos = 1.0e-9,BiasNanos = 1.0e-9;
+
+    private HomeFragment.HomeUIFragmentComponent mUiFragmentComponent;
 
 
     private final BaseStation mBaseStation;
@@ -205,6 +208,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
             ArrayList<Integer> svIdBaseStation = new ArrayList<>();
             ArrayList<Integer> commonSvId = new ArrayList<>();
 
+            int nbrSatObserved = event.getMeasurements().size();
+
             for (GnssMeasurement mes : event.getMeasurements()) {
 
                 if (mes.getConstellationType() == GnssStatus.CONSTELLATION_GPS
@@ -228,7 +233,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
             }
 
             if(commonSvId.size()<4){
-                System.out.println("computeDGPSSingleEpoch| Number of common sat < 4 , exit positioning calculation");
+                System.out.println("computeDGPSSingleEpoch| Number of common available sat < 4 , exit positioning calculation");
                 return;
             }
             System.out.println("computeDGPSSingleEpoch| common svId : " + commonSvId);
@@ -339,14 +344,15 @@ public class RealTimePositionCalculator implements MeasurementListener {
             if (doubleDiffArrayList.size() < 4) {
                 return;
             }
-            computePos(doubleDiffArrayList, timeOfRover);
+            computePos(doubleDiffArrayList, timeOfRover, nbrSatObserved);
 
         }
 
 
-        private void computePos(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover) {
+        private void computePos(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover, int nbrSatObserved) {
 
             Results res = new Results();
+
 
             int nbrObservations = doubleDiffArrayList.size();
             int nbrUnknowns = 3;
@@ -462,8 +468,40 @@ public class RealTimePositionCalculator implements MeasurementListener {
             double vTPv = v.transpose().multiply(P).multiply(v).getEntry(0,0);
             s0 = Math.sqrt(vTPv / (nbrObservations - nbrUnknowns));
             Qxx = new SingularValueDecomposition(A.transpose().multiply(P).multiply(A)).getSolver().getInverse();
-            GDOP = Math.sqrt(Qxx.getTrace());
+
             Kxx = Qxx.scalarMultiply(s0);
+
+            //Indicators dilution of precision (DOPs)
+            GDOP = Math.sqrt(Qxx.getTrace());
+            double PDOP = Math.sqrt(Qxx.getTrace());
+
+
+            // Param ellipsoid Bessel
+            double[] ellParam = ellParam(Constants.ELL_A_Bessel, Constants.ELL_F_Bessel);
+            double e = ellParam[0];
+            double[] ellCoordinate = cart2ell(Constants.ELL_A_GRS80, e, X_Rover);
+
+            double lat0 = Math.toRadians(ellCoordinate[1]);
+            double lon0 = Math.toRadians(ellCoordinate[0]);
+
+            double sinLat0 = Math.sin(lat0);
+            double cosLat0 = Math.cos(lat0);
+            double sinLon0 = Math.sin(lon0);
+            double cosLon0 = Math.cos(lon0);
+
+            double[][] data = new double[][]{
+                    {-sinLat0 * cosLon0, -sinLat0 * sinLon0, cosLat0},
+                    {-sinLon0, cosLon0, 0},
+                    {cosLat0 * cosLon0, cosLat0 * sinLon0, sinLat0}
+            };
+
+            RealMatrix matrixR = new Array2DRowRealMatrix(data);
+
+            // Calculate temporary matrix
+            RealMatrix matrixTopo = matrixR.multiply(Qxx.multiply(matrixR.transpose()));
+            // Extract HDOP and VDOP
+            double HDOP = Math.sqrt(matrixTopo.getEntry(0,0) + matrixTopo.getEntry(1,1));
+            double VDOP = Math.sqrt(matrixTopo.getEntry(2,2));
 
             res.epoch = timeOfRover;
             res.nbrUnknowns = nbrUnknowns;
@@ -474,11 +512,20 @@ public class RealTimePositionCalculator implements MeasurementListener {
             res.X_Rover = X_Rover;
             res.Kxx = Kxx;
             res.GDOP = GDOP;
+            res.PDOP = PDOP;
+            res.VDOP = VDOP;
+            res.HDOP = HDOP;
             res.Kll = Kll;
             res.doubleDiffArrayList = doubleDiffArrayList;
             res.v = v;
+            res.nbrSatObserved = nbrSatObserved;
 
             allResults.add(res);
+            mUiFragmentComponent.incrementResultCounter();
+            ArrayList<Double> MN95 = CHTRS95toMN95(res.X_Rover);
+            mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0),MN95.get(1), MN95.get(2));
+            mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservations, res.PDOP, res.VDOP, res.HDOP);
+
 
         }
 
@@ -486,6 +533,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
         private static class Results{
             public TimeE epoch;
             private int nbrObs ;
+
+            private int nbrSatObserved;
 
             private int nbrUnknowns ;
 
@@ -495,6 +544,9 @@ public class RealTimePositionCalculator implements MeasurementListener {
             private double s0;
 
             private double GDOP;
+            private double PDOP;
+            private double VDOP;
+            private double HDOP;
 
             private RealMatrix Kll;
 
@@ -508,10 +560,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             private final Map<Integer,Iteration> iterations = new HashMap<>();
 
-            public void mapIteration(Iteration iteration){
-
-                iterations.put(iteration.id,iteration);
-            }
         }
         static class Iteration{
             int id;
@@ -783,17 +831,32 @@ public class RealTimePositionCalculator implements MeasurementListener {
             return X_WGS84;
         }
 
-        public RealMatrix CHTRS95toMN95(RealMatrix X){
+    public ArrayList<Double> CHTRS95toMN95(RealMatrix X){
 
-            //TODO : cart2ell, ell2EN
-            RealMatrix t = new Array2DRowRealMatrix(new double[][] {
-                    {-674.374},
-                    {-15.056},
-                    {-405.346}
-            });
 
-            return X.add(t);
-        }
+        // Transformation CHTRS95 => CH1903+
+        RealMatrix t = new Array2DRowRealMatrix(new double[][] {
+                {-674.374},
+                {-15.056},
+                {-405.346}
+        });
+        t = X.add(t);
+
+        // Param ellipsoid Bessel
+        double[] ellParam = ellParam(Constants.ELL_A_Bessel, Constants.ELL_F_Bessel);
+        double e = ellParam[0];
+
+        // Ellipsoidal coordinates CH1903+
+        double[] result = cart2ell(Constants.ELL_A_Bessel, e, t);
+        System.out.println("Longitude: " + result[0] + "°, Latitude: " + result[1] + "°, Hauteur: " + result[2] + " m");
+
+        // Projection MN95
+        ArrayList<Double> swissENHBessel = ell2EN("swiss_MN95",result[0],result[1],e);
+        swissENHBessel.add(result[2]);
+
+
+        return swissENHBessel;
+    }
 
         public void saveDGPSResults() throws IOException {
             SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
@@ -848,16 +911,18 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             StringBuilder stringBuilder = new StringBuilder();
 
-            for(Results res : allResults){
+            ArrayList<Results> currentResults = new ArrayList<>(allResults);
 
-                RealMatrix MN95 = CHTRS95toMN95(res.X_Rover);
+            for(Results res : currentResults){
+
+                ArrayList<Double> MN95 = CHTRS95toMN95(res.X_Rover);
 
                 StringBuilder doubleDiffObsStringBuilder = new StringBuilder();
 
                 for(DoubleDiff DD : res.doubleDiffArrayList){
                     double sigma_l = res.Kll.getEntry(DD.iObs-1, DD.iObs-1);
-                    String str = String.format(Locale.US, "%3s %3s %3s %5s %3s %9.3f %9.3f %9.3f %13.3f %13.3f %13.3f %13.3f",
-                            DD.getPRN1(), DD.getPRN2(), DD.getElevationPRN2(), 34, "C1C", //TODO: get signal auto
+                    String str = String.format(Locale.US, "%3s %3s %3.0f %3s %9.3f %9.3f %9.3f %13.3f %13.3f %13.3f %13.3f",
+                            DD.getPRN1(), DD.getPRN2(), DD.getElevationPRN2(), "C1C", //TODO: get signal auto
                             DD.getDoubleDiff(),
                             sigma_l,
                             res.v.getEntry(DD.iObs-1,0),
@@ -886,8 +951,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
                         "Double differences observations: " + "\n" +
                         "=================================" + "\n" +
-                        String.format("%-4s %-4s %-4s %-5s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "PRN1", "PRN2", "ePRN2", "EPOCH", "SIG", "DD OBS", "E.T", "v", "ZD(BASE,PRN1)", "ZD(BASE,PRN2)", "ZD(ROVER,PRN1)", "ZD(ROVER,PRN2)") +
-                        String.format("%-4s %-4s %-4s %-5s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "", "", "[°]", "", "", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]") +
+                        String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "PRN1", "PRN2", "ePRN2", "SIG", "DD OBS", "E.T", "v", "ZD(BASE,PRN1)", "ZD(BASE,PRN2)", "ZD(ROVER,PRN1)", "ZD(ROVER,PRN2)") +
+                        String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "", "", "[°]", "", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]") +
 
                         doubleDiffObsStringBuilder + "\n" +
 
@@ -906,11 +971,11 @@ public class RealTimePositionCalculator implements MeasurementListener {
                         "Derivative parameters:" + "\n" +
                         "========================================" + "\n" +
                         String.format(Locale.US, "E MN95 : %13.3f [m] \n",
-                                MN95.getEntry(0,0)) + // TODO : function MN95
+                                MN95.get(0)) + // TODO : function MN95
                         String.format(Locale.US, "N MN95 : %13.3f [m] \n",
-                                MN95.getEntry(1,0)) +
+                                MN95.get(1)) +
                         String.format(Locale.US, "h Bessel : %11.3f [m] \n\n",
-                                MN95.getEntry(2,0)) +
+                                MN95.get(2)) +
 
                         String.format(Locale.US, "GDOP : %.1f [-]", res.GDOP);
 
@@ -921,100 +986,100 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             bufferWriter.close();
         }
+    public synchronized void setUiFragmentComponent(HomeFragment.HomeUIFragmentComponent value) {
+        mUiFragmentComponent = value;
+    }
 
-        public void saveDetailedPlusDGPSResults() throws IOException {
-            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
-            Date currentdate = new Date();
-            String filename = String.format("%s_%s.txt", "log", formatter.format(currentdate));
+    public static double[] cart2ell(double a, double e, RealMatrix t) {
+        double[] result = new double[3];
+        double x = t.getEntry(0,0);
+        double y = t.getEntry(1,0);
+        double z = t.getEntry(2,0);
 
-            File textFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename);
+        // Ellipsoidal longitude radians
+        double lon_rad = Math.atan2(y, x);
+        // If lon_rad negative, add 2pi to get positive value (in comment because unused)
+//        if (lon_rad < 0) {
+//            lon_rad += 2 * Math.PI;
+//        }
 
-            BufferedWriter bufferWriter = new BufferedWriter(new FileWriter(textFile));
+        // Ellipsoidal longitude degrees
+        double lon_deg = lon_rad * 180.0 / Math.PI;
 
-            StringBuilder stringBuilder = new StringBuilder();
+        // Initialisation ellipsoidal height and radius of curvature of the normal section
+        double hi = 0;
+        double him1 = 1;
+        double RNi = 1;
+        double lat_radi = 0;
 
-            if (!allResults.isEmpty()){
+        // Iterative loop to calculate latitude and ellipsoidal height
+        while (Math.abs(hi - him1) > 0.000001) {
+            him1 = hi;
 
-            for(Results res : allResults){
-
-                for(int i=1; i < res.nbrIteration; i++){
-                    RealMatrix A = res.iterations.get(i).A;
-                    stringBuilder.append(A);
-                }
-
-
-                RealMatrix MN95 = CHTRS95toMN95(res.X_Rover);
-
-                StringBuilder doubleDiffObsStringBuilder = new StringBuilder();
-
-                for(DoubleDiff DD : res.doubleDiffArrayList){
-                    double sigma_l = res.Kll.getEntry(DD.iObs-1, DD.iObs-1);
-                    String str = String.format(Locale.US, "%3s %3s %5s %3s %9.3f %9.3f %9.3f %13.3f %13.3f %13.3f %13.3f",
-                            DD.getPRN1(), DD.getPRN2(), 34, "C1C", //TODO: get signal auto
-                            DD.getDoubleDiff(),
-                            sigma_l,
-                            res.v.getEntry(DD.iObs-1,0),
-                            DD.zeroDiffBase.get(0), DD.zeroDiffBase.get(1),
-                            DD.zeroDiffRover.get(0), DD.zeroDiffRover.get(1));
-                    doubleDiffObsStringBuilder.append(str).append("\n");
-                }
-
-
-                String resBuilder = "---------------------------------------------------------------------------\n" +
-                        "Differential Positioning (pseudo-distances) / Elisa Borlat / HEIG-VD\n" +
-                        currentdate +" \n" +
-                        "---------------------------------------------------------------------------" + "\n\n" +
-
-                        "Global stats :" + "\n" +
-                        "=======================" + "\n" +
-                        "Nbr observations : " + res.nbrObs + "\n" +
-                        "Nbr unknowns : " + res.nbrUnknowns + "\n" +
-                        "Nbr iteration : " + res.nbrIteration + " (30)\n" +
-                        "s0/sigma0 : " + res.s0 / res.sigma0 + "\n\n" +
-
-                        "Epoch : " + "\n" +
-                        "=======" + "\n" +
-                        String.format("%-6s %-6s %6s %12s %2s %2s %4s %2s %2s %9s", "N0", "EPOCH", "MJD", "MJD     ", "DD", "MM", "YYYY", "hh", "mm", "ss.ssssss") + "\n" +
-                        String.format("%-6s %-6s %6s %12s %10s %15s", "[-]", "[-]", "[day]", "[sec of day]", "[GPST]", "[GPST]") + "\n\n" +
-
-                        "Double differences observations: " + "\n" +
-                        "=================================" + "\n" +
-                        String.format("%-4s %-4s %-5s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "PRN1", "PRN2", "EPOCH", "SIG", "DD OBS", "E.T", "v", "ZD(BASE,PRN1)", "ZD(BASE,PRN2)", "ZD(ROVER,PRN1)", "ZD(ROVER,PRN2)") +
-                        String.format("%-4s %-4s %-5s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "", "", "", "", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]") +
-
-                        doubleDiffObsStringBuilder + "\n" +
-
-                        "Estimated parameters of the rover:" + "\n" +
-                        "==================================" + "\n" +
-                        String.format(Locale.US, "X WGS84 : %13.3f [m] +/- %4.3f [m] \n",
-                                res.X_Rover.getEntry(0,0),
-                                Math.sqrt(Math.abs(res.Kxx.getEntry(0,0)))) +
-                        String.format(Locale.US, "Y WGS84 : %13.3f [m] +/- %4.3f [m] \n",
-                                res.X_Rover.getEntry(1,0),
-                                Math.sqrt(Math.abs(res.Kxx.getEntry(1,0)))) +
-                        String.format(Locale.US, "Z WGS84 : %13.3f [m] +/- %4.3f [m] \n",
-                                res.X_Rover.getEntry(2,0),
-                                Math.sqrt(Math.abs(res.Kxx.getEntry(2,0)))) + "\n" + "\n" +
-
-                        "Derivative parameters:" + "\n" +
-                        "========================================" + "\n" +
-                        String.format(Locale.US, "E MN95 : %13.3f [m] \n",
-                                MN95.getEntry(0,0)) + // TODO : function MN95
-                        String.format(Locale.US, "N MN95 : %13.3f [m] \n",
-                                MN95.getEntry(1,0)) +
-                        String.format(Locale.US, "h Bessel : %11.3f [m] \n\n",
-                                MN95.getEntry(2,0)) +
-
-                        String.format(Locale.US, "GDOP : %.1f [-]", res.GDOP);
-
-                stringBuilder.append(resBuilder).append("\n");
-            }}
-
-            bufferWriter.write(stringBuilder.toString());
-
-            bufferWriter.close();
+            double sqrt = Math.sqrt(x * x + y * y);
+            lat_radi = Math.atan2(z, sqrt * (1 - (RNi / (RNi + hi)) * e * e));
+            RNi = a / Math.sqrt(1 - e * e * Math.sin(lat_radi) * Math.sin(lat_radi));
+            hi = sqrt / Math.cos(lat_radi) - RNi;
         }
 
+        // Latitude en degré et hauteur ellipsoidale
+        double lat_deg = lat_radi * 180.0 / Math.PI;
+        double h = hi;
+
+        result[0] = lon_deg;
+        result[1] = lat_deg;
+        result[2] = h;
+
+        return result;
+    }
+
+    public static ArrayList<Double> ell2EN(String proj, double lon_deg, double lat_deg, double e) {
+        ArrayList<Double> result = new ArrayList<>();
+
+        if (proj.equals("swiss_MN95") || proj.equals("swiss_MN03")) {
+            double lon = lon_deg * Math.PI / 180.0;
+            double lat = lat_deg * Math.PI / 180.0;
+
+            double lon0 = (7.0 + 26.0 / 60.0 + 22.50 / 3600.0) * Math.PI / 180.0;
+            double alpha = 1.0007291384304;
+            double k = 1.0030714396280;
+            double lat_sph_0 = (46.0 + 54.0 / 60.0 + 27.83324846 / 3600.0) * Math.PI / 180.0;
+            double R_sph = 6378815.90365;
+            double E0, N0;
+
+            if (proj.equals("swiss_MN95")) {
+                E0 = 2600000.000;
+                N0 = 1200000.000;
+            } else {
+                E0 = 600000.000;
+                N0 = 200000.000;
+            }
+
+            // ellipsoide->sphère normale
+            double lon_sph = alpha * (lon - lon0);
+            double lat_sph = 2 * Math.atan(
+                    k * Math.pow(Math.tan(Math.PI / 4 + lat / 2.0),alpha) * Math.pow((1 - e * Math.sin(lat)) / (1 + e * Math.sin(lat)),
+                            alpha * e / 2.0))
+                    - Math.PI / 2.0;
+
+            // sphère normale->sphère oblique
+            double lon_sph_t = Math.atan(Math.sin(lon_sph) / (Math.sin(lat_sph_0) * Math.tan(lat_sph)
+                    + Math.cos(lat_sph_0) * Math.cos(lon_sph)));
+            double lat_sph_t = Math.asin(Math.cos(lat_sph_0) * Math.sin(lat_sph)
+                    - Math.sin(lat_sph_0) * Math.cos(lat_sph) * Math.cos(lon_sph));
+
+            // sphère oblique->plan
+            result.add(E0 + R_sph * lon_sph_t);
+            result.add(N0 + R_sph * Math.log(Math.tan(Math.PI / 4.0 + lat_sph_t / 2.0)));
+        }
+        return result;
+    }
+
+    private static double[] ellParam(double a, double f) {
+        double b = a - a*f;
+        double e = Math.sqrt(a*a - b*b)/a;
+        return new double[] { e, b };
+    }
 
 
 
