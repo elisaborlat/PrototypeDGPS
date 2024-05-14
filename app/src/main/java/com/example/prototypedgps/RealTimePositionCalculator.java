@@ -16,7 +16,6 @@ import com.example.pseudorange.GpsTime;
 
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.BlockRealMatrix;
-import org.apache.commons.math3.linear.MatrixDimensionMismatchException;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.SingularValueDecomposition;
 
@@ -135,7 +134,10 @@ public class RealTimePositionCalculator implements MeasurementListener {
         private void computeDGPSSingleEpoch(GnssMeasurementsEvent event, Receiver mBaseStationReceiver) {
 
             // Position of base station
-            if(!mBaseStation.isStationaryAntennaDecoded()){
+            if(mBaseStation.isStationaryAntennaDecoded()){
+                mUiFragmentComponent.stationaryAntennaDecoded();
+            }
+            else{
                 System.out.println("computePos| Position of base station not decoded");
                 return;
             }
@@ -198,6 +200,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
             }
 
             if (deltaMin > 1000.0) {
+                System.out.println("computeDGPSSingleEpoch| deltaMin>1s, exit positioning calculation");
                 return;
             }
 
@@ -209,13 +212,18 @@ public class RealTimePositionCalculator implements MeasurementListener {
             ArrayList<Integer> commonSvId = new ArrayList<>();
 
             int nbrSatObserved = event.getMeasurements().size();
+            int nbrSatObservedGps = 0;
 
+            // Browse measurements
             for (GnssMeasurement mes : event.getMeasurements()) {
 
-                if (mes.getConstellationType() == GnssStatus.CONSTELLATION_GPS
-                        && mes.getCn0DbHz() >= C_TO_N0_THRESHOLD_DB_HZ
-                        && (mes.getState() & (1L << TOW_DECODED_MEASUREMENT_STATE_BIT)) != 0 ) {
-                    svIdRover.add(mes.getSvid());
+                if (mes.getConstellationType() == GnssStatus.CONSTELLATION_GPS){
+                    nbrSatObservedGps += 1;
+                    if(mes.getCn0DbHz() >= C_TO_N0_THRESHOLD_DB_HZ
+                            && (mes.getState() & (1L << TOW_DECODED_MEASUREMENT_STATE_BIT)) != 0
+                            && getElevationFromGpsSvId(mes.getSvid()) >= 15.0) {
+                        svIdRover.add(mes.getSvid());
+                    }
                 }
             }
 
@@ -226,10 +234,13 @@ public class RealTimePositionCalculator implements MeasurementListener {
             // Common available svId
             for (Integer value : svIdRover) {
 
-                if (svIdBaseStation.contains(value)
-                        && hasEphemeris(value)) {
-                    commonSvId.add(value);
+                        if (svIdBaseStation.contains(value)
+                                && hasEphemeris(value)){
+                            commonSvId.add(value);
+
                 }
+
+
             }
 
             if(commonSvId.size()<4){
@@ -240,6 +251,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             ArrayList<DoubleDiff> doubleDiffArrayList = new ArrayList<>();
 
+            // Search for the most zenithal satellite
             int refSv = 0;
             float elevationRefSv = 0;
             for (Integer sv : commonSvId) {
@@ -247,15 +259,14 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 for(int i = 0; i< mGnssStatus.getSatelliteCount(); i++){
                     if (mGnssStatus.getConstellationType(i) == GnssStatus.CONSTELLATION_GPS
                             && mGnssStatus.getSvid(i) == sv
-                            && mGnssStatus.getElevationDegrees(i) > elevationRefSv){
+                            && mGnssStatus.getElevationDegrees(i) > elevationRefSv
+                    ){
                         refSv = mGnssStatus.getSvid(i);
                         elevationRefSv = mGnssStatus.getElevationDegrees(i);
-                    };
+                    }
                 }
 
             }
-
-//        int refSv = commonSvId.get(0);
 
             ObservationSet observationSetRefSv = null;
             ObservationSet observationSetRefSvBefor = null;
@@ -272,9 +283,10 @@ public class RealTimePositionCalculator implements MeasurementListener {
                     if (mes.getConstellationType() == GnssStatus.CONSTELLATION_GPS
                             && hasEphemeris(mes.getSvid())
                             && mes.getCn0DbHz() >= C_TO_N0_THRESHOLD_DB_HZ
-                            && (mes.getState() & (1L << TOW_DECODED_MEASUREMENT_STATE_BIT)) != 0 ) {
+                            && (mes.getState() & (1L << TOW_DECODED_MEASUREMENT_STATE_BIT)) != 0) {
                         if (mes.getSvid() == sv) {
                             pseudorangeSvRover = computePseudorange(mes, gnssClock);
+
                         }
                         if (mes.getSvid() == refSv) {
                             pseudorangeSvRefRover = computePseudorange(mes, gnssClock);
@@ -327,13 +339,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
                     doubleDiffObs.zeroDiffRover.put(0,pseudorangeSvRefRover);
                     doubleDiffObs.zeroDiffRover.put(1,pseudorangeSvRover);
                     doubleDiffObs.doubleDiff = doubleDiff;
-                    doubleDiffObs.elevationPRN1 = elevationRefSv;
-                    for(int i = 0; i< mGnssStatus.getSatelliteCount(); i++){
-                        if (mGnssStatus.getConstellationType(i) == GnssStatus.CONSTELLATION_GPS
-                                && mGnssStatus.getSvid(i) == sv){
-                            doubleDiffObs.elevationPRN2 = mGnssStatus.getElevationDegrees(sv);
-                        }
-                    }
+                    doubleDiffObs.elevationPRN1 = getElevationFromGpsSvId(doubleDiffObs.PRN1);
+                    doubleDiffObs.elevationPRN2 = getElevationFromGpsSvId(doubleDiffObs.PRN2);
 
                     idObs += 1;
                     doubleDiffObs.iObs = idObs;
@@ -344,12 +351,26 @@ public class RealTimePositionCalculator implements MeasurementListener {
             if (doubleDiffArrayList.size() < 4) {
                 return;
             }
-            computePos(doubleDiffArrayList, timeOfRover, nbrSatObserved);
+            computePos(doubleDiffArrayList, timeOfRover, nbrSatObserved, nbrSatObservedGps);
 
         }
 
+    private float getElevationFromGpsSvId(int svId) {
 
-        private void computePos(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover, int nbrSatObserved) {
+        for(int i = 0; i< mGnssStatus.getSatelliteCount(); i++){
+            if (mGnssStatus.getConstellationType(i) == GnssStatus.CONSTELLATION_GPS
+                    && mGnssStatus.getSvid(i) == svId
+                               ){
+                System.out.println("hasElevation| satid : " + mGnssStatus.getSvid(i)+ " elev : " + mGnssStatus.getElevationDegrees(i));
+                return mGnssStatus.getElevationDegrees(i);
+
+            }
+        }
+        return 0.0F;
+    }
+
+
+    private void computePos(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover, int nbrSatObserved, int nbrObservationGps) {
 
             Results res = new Results();
 
@@ -477,7 +498,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
 
             // Param ellipsoid Bessel
-            double[] ellParam = ellParam(Constants.ELL_A_Bessel, Constants.ELL_F_Bessel);
+            double[] ellParam = ellBesselParam();
             double e = ellParam[0];
             double[] ellCoordinate = cart2ell(Constants.ELL_A_GRS80, e, X_Rover);
 
@@ -519,19 +540,21 @@ public class RealTimePositionCalculator implements MeasurementListener {
             res.doubleDiffArrayList = doubleDiffArrayList;
             res.v = v;
             res.nbrSatObserved = nbrSatObserved;
+            res.nbrObservationsGps = nbrObservationGps;
 
             allResults.add(res);
+
+            // Update res in UI
             mUiFragmentComponent.incrementResultCounter();
             ArrayList<Double> MN95 = CHTRS95toMN95(res.X_Rover);
             mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0),MN95.get(1), MN95.get(2));
-            mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservations, res.PDOP, res.VDOP, res.HDOP);
-
-
+            mUiFragmentComponent.updateRes(res.nbrSatObserved, res.nbrObservationsGps, nbrObservations, res.PDOP, res.VDOP, res.HDOP, (res.s0/res.sigma0));
         }
 
 
         private static class Results{
             public TimeE epoch;
+            public int nbrObservationsGps;
             private int nbrObs ;
 
             private int nbrSatObserved;
@@ -625,6 +648,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
         }
 
         private double computePseudorange(GnssMeasurement mes, GnssClock gnssClock) {
+
             /**maintaining constant the 'FullBiasNanos' instead of using the instantaneous value. This avoids the 256 ns
              jumps each 3 seconds that create a code-phase divergence due to the clock.*/
             if (!setClockBias) {
@@ -633,15 +657,11 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 setClockBias = true;
             }
 
-
             double tTx = mes.getReceivedSvTimeNanos();
             double tRxGNSS = gnssClock.getTimeNanos() + mes.getTimeOffsetNanos() - (fullBiasNanos + BiasNanos);
             double tRx = tRxGNSS % Constants.NUMBER_NANO_SECONDS_WEEK;
-            double pseudorange = (tRx - tTx) * 1e-9 * Constants.SPEED_OF_LIGHT;
-            System.out.println("computePseudorange| state :" +mes.getState());
-            System.out.println("computePseudorange| " + mes.getSvid() + " : " + pseudorange);
 
-            return pseudorange;
+            return (tRx - tTx) * 1e-9 * Constants.SPEED_OF_LIGHT;
         }
 
         static class DoubleDiff {
@@ -717,20 +737,11 @@ public class RealTimePositionCalculator implements MeasurementListener {
             Ephemeris.GpsEphemerisProto prnEphemeris;
             for (Ephemeris.GpsEphemerisProto eph : mHardwareGpsNavMessageProto.ephemerids) {
                 if (eph.prn == prn) {
-//                System.out.println("getSVPosition| Compute prn"+prn+" position");
                     // Get ephemeris data for the current SV
                     prnEphemeris = eph;
 
-                    int gpsWeek = timeE.getGpsWeek();
-
                     // Delta temps
                     double dt = timeE.getTow() - prnEphemeris.toc;
-
-//                if (prnEphemeris.week == gpsWeek) {
-//                    String formattedDt = String.format("%.2f", dt / 3600);
-//                    System.out.println("getSVPosition| at tGPS = " + timeE.getTow() + " (toe = " +prnEphemeris.toe + " )");
-//                    System.out.println("getSVPosition| Time difference between epoch and ephemeris: " + formattedDt + " [hour]");
-//                }
 
                     // Handle week wraparound
                     if (dt > 302400.0) {
@@ -843,7 +854,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
         t = X.add(t);
 
         // Param ellipsoid Bessel
-        double[] ellParam = ellParam(Constants.ELL_A_Bessel, Constants.ELL_F_Bessel);
+        double[] ellParam = ellBesselParam();
         double e = ellParam[0];
 
         // Ellipsoidal coordinates CH1903+
@@ -859,7 +870,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
     }
 
         public void saveDGPSResults() throws IOException {
-            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
+            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss", Locale.US);
             Date currentdate = new Date();
             String filename = String.format("%s_%s.txt", "listing_CodeDifferential", formatter.format(currentdate));
 
@@ -901,7 +912,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
         }
 
         public void saveDetailedDGPSResults() throws IOException {
-            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
+            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss", Locale.US);
             Date currentdate = new Date();
             String filename = String.format("%s_%s.txt", "detailed_listing_CodeDifferential", formatter.format(currentdate));
 
@@ -941,7 +952,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
                         "=======================" + "\n" +
                         "Nbr observations : " + res.nbrObs + "\n" +
                         "Nbr unknowns : " + res.nbrUnknowns + "\n" +
-                        "Nbr iteration : " + res.nbrIteration + " (30)\n" +
+                        "Nbr iteration : " + res.nbrIteration + " (10)\n" +
                         "s0/sigma0 : " + res.s0 / res.sigma0 + "\n\n" +
 
                         "Epoch : " + "\n" +
@@ -949,7 +960,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
                         String.format("%-6s %-6s %6s %12s %2s %2s %4s %2s %2s %9s", "N0", "EPOCH", "MJD", "MJD     ", "DD", "MM", "YYYY", "hh", "mm", "ss.ssssss") + "\n" +
                         String.format("%-6s %-6s %6s %12s %10s %15s", "[-]", "[-]", "[day]", "[sec of day]", "[GPST]", "[GPST]") + "\n\n" +
 
-                        "Double differences observations: " + "\n" +
+                        "Double differences observations (ePRN1 = " + res.doubleDiffArrayList.get(0).elevationPRN1 + ") : " + "\n" +
                         "=================================" + "\n" +
                         String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "PRN1", "PRN2", "ePRN2", "SIG", "DD OBS", "E.T", "v", "ZD(BASE,PRN1)", "ZD(BASE,PRN2)", "ZD(ROVER,PRN1)", "ZD(ROVER,PRN2)") +
                         String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "", "", "[°]", "", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]") +
@@ -1075,10 +1086,12 @@ public class RealTimePositionCalculator implements MeasurementListener {
         return result;
     }
 
-    private static double[] ellParam(double a, double f) {
-        double b = a - a*f;
-        double e = Math.sqrt(a*a - b*b)/a;
-        return new double[] { e, b };
+    private static double[] ellBesselParam() {
+            double a = Constants.ELL_A_Bessel;
+            double f = Constants.ELL_F_Bessel;
+            double b = a - a*f;
+            double e = Math.sqrt(a*a - b*b)/a;
+            return new double[] { e, b };
     }
 
 

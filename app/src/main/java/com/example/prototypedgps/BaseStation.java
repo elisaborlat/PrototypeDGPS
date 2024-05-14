@@ -2,9 +2,6 @@ package com.example.prototypedgps;
 
 import android.util.Log;
 
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
-
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
 
@@ -44,7 +41,7 @@ public class BaseStation {
     private int messagelength = 0;
 
     private int messageType = 0;
-    private boolean headerIsChecked = false;
+    public boolean headerIsChecked = false;
     // Creation de l'HTTP Basic Authentication Scheme du NTRIPClient
     String userPass = username + ":" + password;
     String encoded = Base64.getEncoder().encodeToString(userPass.getBytes());
@@ -69,6 +66,8 @@ public class BaseStation {
     }
 
     private final Receiver mBaseStationReceiver;
+
+    private HomeFragment.HomeUIFragmentComponent mUiComponent;
 
     public BaseStation(){
         this.mBaseStationReceiver = new Receiver();
@@ -153,130 +152,124 @@ public class BaseStation {
 
     public void registerRtcmMsg(){
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Send the message
-                    Socket socket = new Socket(NTRIPCasterURL, NTRIPCasterPort);
-                    OutputStream outputStream = socket.getOutputStream();
-                    System.out.println("registerRtcmMsg| Send to NTRIPCaster :\n" + header);
+        new Thread(() -> {
+            try {
+                // Send the message
+                Socket socket = new Socket(NTRIPCasterURL, NTRIPCasterPort);
+                OutputStream outputStream = socket.getOutputStream();
+                System.out.println("registerRtcmMsg| Send to NTRIPCaster :\n" + header);
 
-                    outputStream.write(header.getBytes());
+                outputStream.write(header.getBytes());
 
-                    InputStream inputStream = socket.getInputStream();
+                InputStream inputStream = socket.getInputStream();
 
-                    // Read server response
-                    while (true) {
+                // Read server response
+                while (true) {
 
-                        StringBuilder msgBuilder = new StringBuilder();
+                    StringBuilder msgBuilder = new StringBuilder();
 
-                        // Header check
-                        if (!headerIsChecked) {
-                            // ICY 200 ok
-                            int[] correctHeader = {73, 67, 89, 32, 50, 48, 48, 32, 79, 75, 13};
+                    // Header check
+                    if (!headerIsChecked) {
+                        // ICY 200 ok
+                        int[] correctHeader = {73, 67, 89, 32, 50, 48, 48, 32, 79, 75, 13};
 
-                            int[] headerBuffer = new int[11];
-                            for (int i = 0; i < headerBuffer.length; i++) {
-                                headerBuffer[i] = inputStream.read();
-                                if (headerBuffer[i] != correctHeader[i]) {
-
-//
-
-                                    break;
-                                }
-                                headerIsChecked = true;
+                        int[] headerBuffer = new int[11];
+                        for (int i = 0; i < headerBuffer.length; i++) {
+                            headerBuffer[i] = inputStream.read();
+                            if (headerBuffer[i] != correctHeader[i]) {
+                                break;
                             }
-                        }
-
-                        // Search message
-                        int currentByte = inputStream.read();
-
-                        if (currentByte == -1) {
-                            break;
-                        }
-                        // If get preamble (211 is the byte corresponding to the 8 bits : 11010011)
-                        if (currentByte == 211) {
-
-                            //Message length
-                            int index;
-                            int[] buffer = new int[2];
-                            index = 0;
-                            buffer[0] = inputStream.read();
-                            buffer[1] = inputStream.read();
-                            bits = new boolean[buffer.length * 8];
-
-                            rollbits = new boolean[8];
-                            for (int k : buffer) {
-                                rollbits = Bits.rollByteToBits(k);
-                                for (boolean rollbit : rollbits) {
-                                    bits[index] = rollbit;
-                                    index++;
-                                }
-                            }
-                            messagelength = (int) Bits.bitsToUInt(Bits.subset(bits, 6, 10));
-
-
-                            // Storage of data message in dataBuffer
-                            int index3 = 0;
-                            int[] dataBuffer = new int[messagelength]; // storage in bytes
-                            boolean[] dataBits = new boolean[dataBuffer.length * 8]; // storage in bits
-                            for (int i = 0; i < dataBuffer.length; i++) {
-                                dataBuffer[i] = inputStream.read();
-                            }
-                            rollbits = new boolean[8];
-                            for (int k : dataBuffer) {
-                                rollbits = Bits.rollByteToBits(k);
-                                for (boolean rollbit : rollbits) {
-                                    dataBits[index3] = rollbit;
-                                    index3++;
-                                }
-                            }
-
-                            int index2 = 0;
-                            int[] MessageTypeBuffer = new int[2];
-                            boolean[] MessageTypeBits = new boolean[MessageTypeBuffer.length * 8];
-
-                            rollbits = new boolean[8];
-                            for (int i = 0; i < MessageTypeBuffer.length; i++) {
-                                rollbits = Bits.rollByteToBits(dataBuffer[i]);
-                                for (boolean rollbit : rollbits) {
-                                    MessageTypeBits[index2] = rollbit;
-                                    index2++;
-                                }
-                            }
-
-                            messageType = (int) Bits.bitsToUInt(Bits.subset(MessageTypeBits, 0, 12));
-
-
-                            if (messageType == 1006) {
-                                Decode1006Msg mDecode1006Msg = new Decode1006Msg();
-                                mStationaryAntenna = mDecode1006Msg.decode(dataBits);
-                                System.out.println("registerRtcmMsg| ITRF Realisation Year : " + mStationaryAntenna.getItrl());
-                                System.out.println("registerRtcmMsg| ECEF-X : " + mStationaryAntenna.getAntennaRefPointX());
-                                System.out.println("registerRtcmMsg| ECEF-Y : " + mStationaryAntenna.getAntennaRefPointY());
-                                System.out.println("registerRtcmMsg| ECEF-Z : " + mStationaryAntenna.getAntennaRefPointZ());
-                            }
-
-                            if (messageType == 1004) {
-                                Decode1004Msg mDecode1004Msg = new Decode1004Msg();
-                                Time currentTime = new Time(System.currentTimeMillis());
-                                Observations mObservations = mDecode1004Msg.decode(dataBits, currentTime.getGpsWeek());
-                                mBaseStationReceiver.addEpoch(mObservations);
-                                String rtcmObservationsString = rtcmObservationsToString(mObservations);
-                                msgBuilder.append(rtcmObservationsString);
-
-                            }
+                            headerIsChecked = true;
                         }
                     }
-                    outputStream.close();
-                    inputStream.close();
-                    socket.close();
-                } catch (IOException e) {
-                    Log.e("TCP", "Error sending message", e);
-                }
 
+                    // Search message
+                    int currentByte = inputStream.read();
+
+                    if (currentByte == -1) {
+                        break;
+                    }
+                    // If get preamble (211 is the byte corresponding to the 8 bits : 11010011)
+                    if (currentByte == 211) {
+
+                        //Message length
+                        int index;
+                        int[] buffer = new int[2];
+                        index = 0;
+                        buffer[0] = inputStream.read();
+                        buffer[1] = inputStream.read();
+                        bits = new boolean[buffer.length * 8];
+
+                        rollbits = new boolean[8];
+                        for (int k : buffer) {
+                            rollbits = Bits.rollByteToBits(k);
+                            for (boolean rollbit : rollbits) {
+                                bits[index] = rollbit;
+                                index++;
+                            }
+                        }
+                        messagelength = (int) Bits.bitsToUInt(Bits.subset(bits, 6, 10));
+
+
+                        // Storage of data message in dataBuffer
+                        int index3 = 0;
+                        int[] dataBuffer = new int[messagelength]; // storage in bytes
+                        boolean[] dataBits = new boolean[dataBuffer.length * 8]; // storage in bits
+                        for (int i = 0; i < dataBuffer.length; i++) {
+                            dataBuffer[i] = inputStream.read();
+                        }
+                        rollbits = new boolean[8];
+                        for (int k : dataBuffer) {
+                            rollbits = Bits.rollByteToBits(k);
+                            for (boolean rollbit : rollbits) {
+                                dataBits[index3] = rollbit;
+                                index3++;
+                            }
+                        }
+
+                        int index2 = 0;
+                        int[] MessageTypeBuffer = new int[2];
+                        boolean[] MessageTypeBits = new boolean[MessageTypeBuffer.length * 8];
+
+                        rollbits = new boolean[8];
+                        for (int i = 0; i < MessageTypeBuffer.length; i++) {
+                            rollbits = Bits.rollByteToBits(dataBuffer[i]);
+                            for (boolean rollbit : rollbits) {
+                                MessageTypeBits[index2] = rollbit;
+                                index2++;
+                            }
+                        }
+
+                        messageType = (int) Bits.bitsToUInt(Bits.subset(MessageTypeBits, 0, 12));
+
+
+                        if (messageType == 1006) {
+                            Decode1006Msg mDecode1006Msg = new Decode1006Msg();
+                            mStationaryAntenna = mDecode1006Msg.decode(dataBits);
+                            System.out.println("registerRtcmMsg| ITRF Realisation Year : " + mStationaryAntenna.getItrl());
+                            System.out.println("registerRtcmMsg| ECEF-X : " + mStationaryAntenna.getAntennaRefPointX());
+                            System.out.println("registerRtcmMsg| ECEF-Y : " + mStationaryAntenna.getAntennaRefPointY());
+                            System.out.println("registerRtcmMsg| ECEF-Z : " + mStationaryAntenna.getAntennaRefPointZ());
+                        }
+
+                        if (messageType == 1004) {
+                            Decode1004Msg mDecode1004Msg = new Decode1004Msg();
+                            Time currentTime = new Time(System.currentTimeMillis());
+                            Observations mObservations = mDecode1004Msg.decode(dataBits, currentTime.getGpsWeek());
+                            mBaseStationReceiver.addEpoch(mObservations);
+                            String rtcmObservationsString = rtcmObservationsToString(mObservations);
+                            msgBuilder.append(rtcmObservationsString);
+
+                        }
+                    }
+                }
+                outputStream.close();
+                inputStream.close();
+                socket.close();
+            } catch (IOException e) {
+                Log.e("TCP", "Error sending message", e);
             }
+
         }).start();
     }
 
@@ -298,6 +291,10 @@ public class BaseStation {
                 {mStationaryAntenna.getAntennaRefPointZ()}
         };
         return new Array2DRowRealMatrix(data);
+    }
+
+    public void setUiFragmentComponent(HomeFragment.HomeUIFragmentComponent uiComponent) {
+        mUiComponent = uiComponent;
     }
 
 
@@ -362,7 +359,7 @@ public class BaseStation {
         return mStationaryAntenna != null;
     }
 
-
-
+    public boolean isConnected()
+    {return headerIsChecked;}
 
 }

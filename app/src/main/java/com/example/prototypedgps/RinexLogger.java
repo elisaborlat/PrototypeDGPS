@@ -31,15 +31,8 @@ import java.util.Locale;
 public class RinexLogger implements MeasurementListener {
 
     private static final String TAG = "RinexLogger";
-
-    private static final String FOLDER_PREFIX = "gnss_log";
     private static final String FILE_PREFIX = "rinex";
     private static final String ERROR_WRITING_FILE = "Problem writing to file.";
-    private static final String COMMENT_START = "# ";
-    private static final char RECORD_DELIMITER = ',';
-    private static final String VERSION_TAG = "Version: ";
-
-    private static final int MAX_FILES_STORED = 100;
     private static final int MINIMUM_USABLE_FILE_SIZE_BYTES = 1000;
 
     private final Context mContext;
@@ -53,15 +46,13 @@ public class RinexLogger implements MeasurementListener {
     private static final int TOW_DECODED_MEASUREMENT_STATE_BIT = 3;
     private static final int C_TO_N0_THRESHOLD_DB_HZ = 18;
     Boolean set_clockbias = false;
-    private static  double fullBiasNanos = 1.0e-9,BiasNanos = 1.0e-9;
+    private static double fullBiasNanos = 1.0e-9,BiasNanos = 1.0e-9;
 
     private HomeFragment.HomeUIFragmentComponent mUiFragmentComponent;
 
 
     public synchronized void setUiFragmentComponent(HomeFragment.HomeUIFragmentComponent value) {
         mUiFragmentComponent = value;
-    }
-    public void setMainActivity(FragmentActivity activity) {
     }
 
     public RinexLogger(Context context) {
@@ -156,6 +147,13 @@ public class RinexLogger implements MeasurementListener {
 
     @Override
     public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
+
+        GnssClock gnssClock = event.getClock();
+        // Check that the receiver have estimate GPS time
+        if (!gnssClock.hasFullBiasNanos()) {
+            System.out.println("RinexLogger| FullBiasNanos is not decoded, exit log meas");
+            return;
+        }
 
         synchronized (mFileLock) {
             if (mFileWriter == null) {
@@ -265,19 +263,11 @@ public class RinexLogger implements MeasurementListener {
                     BiasNanos = gnssClock.getBiasNanos();
                     set_clockbias = true;
                 }
-                double tTx = mes.getReceivedSvTimeNanos();
 
+                double tTx = mes.getReceivedSvTimeNanos();
                 double tRxGNSS = gnssClock.getTimeNanos() + mes.getTimeOffsetNanos() - (fullBiasNanos + BiasNanos);
                 double tRx = tRxGNSS % Constants.NUMBER_NANO_SECONDS_WEEK;
-
-                double tRxGNSS2 = gnssClock.getTimeNanos() + mes.getTimeOffsetNanos() - (gnssClock.getFullBiasNanos() + gnssClock.getBiasNanos());
-                double tRx2 = tRxGNSS2 % Constants.NUMBER_NANO_SECONDS_WEEK;
-
                 double pseudorange = (tRx - tTx) * 1e-9 * Constants.SPEED_OF_LIGHT;
-                double pseudorange2 = (tRx2 - tTx) * 1e-9 * Constants.SPEED_OF_LIGHT;
-
-//                System.out.println(pseudorange + " (1)");
-//                System.out.println(pseudorange2 + " (2)");
 
                 int satId = mes.getSvid();
                 String constellationId = getConstellationSystemIdentifierRinex(mes.getConstellationType());
@@ -424,25 +414,6 @@ public class RinexLogger implements MeasurementListener {
 
     }
 
-    // Source : GNSSLogger
-    private String getConstellationName(int id) {
-        switch (id) {
-            case 1:
-                return "GPS";
-            case 2:
-                return "SBAS";
-            case 3:
-                return "GLONASS";
-            case 4:
-                return "QZSS";
-            case 5:
-                return "BEIDOU";
-            case 6:
-                return "GALILEO";
-            default:
-                return "UNKNOWN";
-        }
-    }
 
     private String getConstellationSystemIdentifierRinex(int id) {
         switch (id) {
@@ -490,6 +461,4 @@ public class RinexLogger implements MeasurementListener {
             return pathname.length() < MINIMUM_USABLE_FILE_SIZE_BYTES;
         }
     }
-
-
 }

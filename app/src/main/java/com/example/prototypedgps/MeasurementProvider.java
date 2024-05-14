@@ -3,7 +3,6 @@ package com.example.prototypedgps;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.location.GnssClock;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssNavigationMessage;
 import android.location.GnssStatus;
@@ -36,15 +35,9 @@ public class MeasurementProvider {
                 @Override
                 public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
 
-                    GnssClock gnssClock = event.getClock();
-
-                    // Check that the receiver have estimate GPS time
-                    if (gnssClock.hasFullBiasNanos()) {
                         for (MeasurementListener logger : mListeners) {
                             logger.onGnssMeasurementsReceived(event);
                         }
-                    }
-
                 }
             };
 

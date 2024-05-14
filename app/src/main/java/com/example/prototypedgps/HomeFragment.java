@@ -34,8 +34,6 @@ public class HomeFragment extends Fragment {
 
     private BaseStation mBaseStation;
 
-
-
     private RealTimePositionCalculator mRealTimePositionCalculator;
     private final HomeUIFragmentComponent mUiComponent = new HomeUIFragmentComponent();
 
@@ -58,6 +56,11 @@ public class HomeFragment extends Fragment {
 
 
         binding = FragmentMainBinding.inflate(inflater, container, false);
+
+        if(mBaseStation.isConnected()){
+            binding.textViewConnected.setText("Connected");
+            binding.textViewConnected.setTextColor(Color.GREEN);
+        }
 
         binding.buttonStartLog.setOnClickListener(v -> {
 
@@ -166,7 +169,6 @@ public class HomeFragment extends Fragment {
 
     public void setRinexLogger(RinexLogger mRinexLogger) {
         this.mRinexLogger = mRinexLogger;
-        mRinexLogger.setMainActivity(getActivity());
     }
 
     public void setRealTimePositionCalculator(RealTimePositionCalculator mRealTimePositionCalculator) {
@@ -181,11 +183,11 @@ public class HomeFragment extends Fragment {
 
         private final Handler handler = new Handler(Looper.getMainLooper());
 
-        public void setRinexCounter(int rinexCounter) {
-            rinexCounter = rinexCounter;
+        public void setRinexCounter(int rinexCount) {
+            rinexCounter = rinexCount;
         }
-        public void setResultsCounter(int resultsCounter) {
-            resultsCounter = resultsCounter;
+        public void setResultsCounter(int resCounter) {
+            resultsCounter = resCounter;
         }
         public void incrementRinexCounter() {
             handler.post(() -> {
@@ -213,24 +215,40 @@ public class HomeFragment extends Fragment {
             handler.post(() -> {
                 Activity activity = getActivity();
                 if (activity != null) {
-                    binding.textViewEst.setText(String.format(Locale.US, "%.3f m", east));
+                    binding.textViewEast.setText(String.format(Locale.US, "%.3f m", east));
                     binding.textViewNorth.setText(String.format(Locale.US, "%.3f m", north));
                     binding.textViewH.setText(String.format(Locale.US, "%.3f m", hBessel));
                 }
             });
         }
 
-        public void updateRes(int nbrSatObserved, int nbrObservations, double pdop, double vdop, double hdop) {
+        public void updateRes(int nbrSatObserved, int nbrObservationsGps, int nbrObservations, double pdop, double vdop, double hdop, double sigma) {
             handler.post(() -> {
                 Activity activity = getActivity();
                 if (activity != null) {
-                    binding.textViewSat.setText(String.format(Locale.US, "%s / %s", nbrObservations+1,nbrSatObserved));
+                    binding.textViewSat.setText(String.format(Locale.US, "%s/%s/%s", nbrObservations+1,nbrObservationsGps, nbrSatObserved));
                     binding.textViewPDOP.setText(String.format(Locale.US,"%.1f",pdop));
                     binding.textViewHVDOP.setText(String.format(Locale.US, "%.1f / %.1f", hdop,vdop));
+                    binding.textViewSigma.setText(String.format(Locale.US, "%.2f", sigma));
+
+                    if (sigma>3){
+                        binding.textViewSigma.setTextColor(Color.RED);
+                    } else {
+                        binding.textViewSigma.setTextColor(Color.WHITE);
+                    }
+
                 }
             });
         }
 
+        public void stationaryAntennaDecoded() {
+            handler.post(() -> {
+                Activity activity = getActivity();
+                if (activity != null) {
+                    binding.textViewDecoded.setText(String.format(Locale.US, "%s", "Position of base station decoded"));
+                    binding.textViewDecoded.setTextColor(Color.GREEN);}
+            });
+        }
     }
 
 

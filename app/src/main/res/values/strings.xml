@@ -4,4 +4,13 @@
     <string name="dgps">DGPS</string>
     <string name="dashboard">Dashboard</string>
     <string name="notifications">Notifications</string>
+    <string name="base_station">Base station</string>
+    <string name="not_connected">Not connected</string>
+    <string name="coordinates">Coordinates</string>
+    <string name="not_decoded">Not decoded</string>
+    <string name="e_mn95">E MN95:</string>
+    <string name="n_mn95">N MN95:</string>
+    <string name="h_bessel">h Bessel:</string>
+    <string name="pdop">PDOP:</string>
+    <string name="connected">Connected</string>
 </resources>

@@ -86,7 +86,6 @@ public class MainActivity extends AppCompatActivity{
         homeFragment.setRealTimePositionCalculator(mRealTimePositionCalculator);
         homeFragment.setBaseStation(mBaseStation);
 
-
         // The fragmentManager need to be created juste once
         FragmentManager fragmentManager = getSupportFragmentManager();
         // Load default Fragment
@@ -94,6 +93,9 @@ public class MainActivity extends AppCompatActivity{
                 .replace(R.id.fragment_container, homeFragment, null)
                 .setReorderingAllowed(true)
                 .commit();
+
+
+
 
         // Navigation View
         BottomNavigationView navigationView = findViewById(R.id.bottom_nav);
