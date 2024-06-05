@@ -25,21 +25,25 @@ public class HomeFragment extends Fragment {
 
     private FragmentMainBinding binding;
 
-    private FileLogger mFileLogger;
-    private RinexLogger mRinexLogger;
+    private final FileLogger mFileLogger;
+    private final RinexLogger mRinexLogger;
 
-    public void setBaseStation(BaseStation mBaseStation) {
-        this.mBaseStation = mBaseStation;
-    }
+    private final BaseStation mBaseStation;
 
-    private BaseStation mBaseStation;
-
-    private RealTimePositionCalculator mRealTimePositionCalculator;
+    private final RealTimePositionCalculator mRealTimePositionCalculator;
     private final HomeUIFragmentComponent mUiComponent = new HomeUIFragmentComponent();
 
 
-    public HomeFragment() {
+    public HomeFragment(RealTimePositionCalculator mRealTimePositionCalculator,
+                        FileLogger mFileLogger,
+                        RinexLogger mRinexLogger,
+                        BaseStation mBaseStation) {
+    this.mRealTimePositionCalculator = mRealTimePositionCalculator;
+    this.mRinexLogger = mRinexLogger;
+    this.mBaseStation = mBaseStation;
+    this.mFileLogger = mFileLogger;
     }
+
 
 
     @Override
@@ -58,7 +62,7 @@ public class HomeFragment extends Fragment {
         binding = FragmentMainBinding.inflate(inflater, container, false);
 
         if(mBaseStation.isConnected()){
-            binding.textViewConnected.setText("Connected");
+            binding.textViewConnected.setText(R.string.connected);
             binding.textViewConnected.setTextColor(Color.GREEN);
         }
 
@@ -163,18 +167,7 @@ public class HomeFragment extends Fragment {
         binding = null;
     }
 
-    public void setFileLogger(FileLogger mFileLogger) {
-        this.mFileLogger = mFileLogger;
-    }
-
-    public void setRinexLogger(RinexLogger mRinexLogger) {
-        this.mRinexLogger = mRinexLogger;
-    }
-
-    public void setRealTimePositionCalculator(RealTimePositionCalculator mRealTimePositionCalculator) {
-        this.mRealTimePositionCalculator = mRealTimePositionCalculator;
-    }
-
+    /** A facade for Home UI related operations. */
     public class HomeUIFragmentComponent{
 
         private int rinexCounter = 0;
@@ -250,7 +243,5 @@ public class HomeFragment extends Fragment {
             });
         }
     }
-
-
 
 }

@@ -79,18 +79,12 @@ public class MainActivity extends AppCompatActivity{
         mMeasurementProvider.registerMeasurements();
         mMeasurementProvider.registerStatus();
 
-        //Set HomeFragment
-        HomeFragment homeFragment = new HomeFragment();
-        homeFragment.setFileLogger(mFileLogger);
-        homeFragment.setRinexLogger(mRinexLogger);
-        homeFragment.setRealTimePositionCalculator(mRealTimePositionCalculator);
-        homeFragment.setBaseStation(mBaseStation);
 
         // The fragmentManager need to be created juste once
         FragmentManager fragmentManager = getSupportFragmentManager();
         // Load default Fragment
         fragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, homeFragment, null)
+                .replace(R.id.fragment_container, new HomeFragment(mRealTimePositionCalculator, mFileLogger, mRinexLogger,mBaseStation), null)
                 .setReorderingAllowed(true)
                 .commit();
 
@@ -100,8 +94,8 @@ public class MainActivity extends AppCompatActivity{
         // Navigation View
         BottomNavigationView navigationView = findViewById(R.id.bottom_nav);
         Map<Integer, Fragment> fragmentMap = new HashMap<>();
-        fragmentMap.put(R.id.navigation_home, homeFragment);
-        fragmentMap.put(R.id.navigation_status, new StatusFragment());
+        fragmentMap.put(R.id.navigation_home, new HomeFragment(mRealTimePositionCalculator, mFileLogger, mRinexLogger,mBaseStation));
+        fragmentMap.put(R.id.navigation_status, new StatusFragment(mRealTimePositionCalculator));
         fragmentMap.put(R.id.navigation_notifications, new BaseFragment());
         navigationView.setOnItemSelectedListener(item -> {
             Fragment fragment = fragmentMap.get(item.getItemId());
@@ -148,7 +142,7 @@ public class MainActivity extends AppCompatActivity{
         // Storage of current ephemeris
         try {
             FileOutputStream fos = openFileOutput("data.txt", Context.MODE_PRIVATE);
-            String s = mEphemerisManager.saveDataToFile(fos);
+            mEphemerisManager.saveDataToFile(fos);
             System.out.println("onPause| Data have been storage : data.txt");
         } catch (IOException e) {
             throw new RuntimeException(e);

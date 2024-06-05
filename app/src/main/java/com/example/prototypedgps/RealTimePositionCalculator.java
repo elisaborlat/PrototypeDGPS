@@ -40,6 +40,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
     private HomeFragment.HomeUIFragmentComponent mUiFragmentComponent;
 
+    private StatusFragment.StatusUIFragmentComponent mStatusUIFragmentComponent;
+
 
     private final BaseStation mBaseStation;
 
@@ -113,6 +115,9 @@ public class RealTimePositionCalculator implements MeasurementListener {
         @Override
         public void onGnssStatusChanged(GnssStatus gnssStatus) {
             mGnssStatus = gnssStatus;
+            if(mStatusUIFragmentComponent!=null){
+            mStatusUIFragmentComponent.updateTemp()
+            ;}
         }
 
         @Override
@@ -510,13 +515,13 @@ public class RealTimePositionCalculator implements MeasurementListener {
             double sinLon0 = Math.sin(lon0);
             double cosLon0 = Math.cos(lon0);
 
-            double[][] data = new double[][]{
+            double[][] rotation = new double[][]{
                     {-sinLat0 * cosLon0, -sinLat0 * sinLon0, cosLat0},
                     {-sinLon0, cosLon0, 0},
                     {cosLat0 * cosLon0, cosLat0 * sinLon0, sinLat0}
             };
 
-            RealMatrix matrixR = new Array2DRowRealMatrix(data);
+            RealMatrix matrixR = new Array2DRowRealMatrix(rotation);
 
             // Calculate temporary matrix
             RealMatrix matrixTopo = matrixR.multiply(Qxx.multiply(matrixR.transpose()));
@@ -1000,6 +1005,10 @@ public class RealTimePositionCalculator implements MeasurementListener {
     public synchronized void setUiFragmentComponent(HomeFragment.HomeUIFragmentComponent value) {
         mUiFragmentComponent = value;
     }
+    public synchronized void setStatusUiFragmentComponent(StatusFragment.StatusUIFragmentComponent value) {
+        mStatusUIFragmentComponent = value;
+    }
+
 
     public static double[] cart2ell(double a, double e, RealMatrix t) {
         double[] result = new double[3];

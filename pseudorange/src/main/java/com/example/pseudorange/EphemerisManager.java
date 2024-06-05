@@ -32,13 +32,12 @@ public class EphemerisManager {
             return mHardwareGpsNavMessageProto;
         }
 
-        public String saveDataToFile(FileOutputStream fos) throws IOException {
+        public void saveDataToFile(FileOutputStream fos) throws IOException {
             String text = String.valueOf(getmHardwareGpsNavMessageProto());
             if(!text.equals("null")){
                 fos.write(text.getBytes());
             }
             fos.close();
-            return text;
         }
 
         public void loadLastEph(StringBuilder sb){
