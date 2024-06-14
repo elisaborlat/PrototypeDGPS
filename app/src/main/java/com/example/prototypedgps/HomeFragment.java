@@ -25,25 +25,13 @@ public class HomeFragment extends Fragment {
 
     private FragmentMainBinding binding;
 
-    private final FileLogger mFileLogger;
-    private final RinexLogger mRinexLogger;
+    private FileLogger mFileLogger;
+    private RinexLogger mRinexLogger;
 
-    private final BaseStation mBaseStation;
+    private BaseStation mBaseStation;
 
-    private final RealTimePositionCalculator mRealTimePositionCalculator;
+    private RealTimePositionCalculator mRealTimePositionCalculator;
     private final HomeUIFragmentComponent mUiComponent = new HomeUIFragmentComponent();
-
-
-    public HomeFragment(RealTimePositionCalculator mRealTimePositionCalculator,
-                        FileLogger mFileLogger,
-                        RinexLogger mRinexLogger,
-                        BaseStation mBaseStation) {
-    this.mRealTimePositionCalculator = mRealTimePositionCalculator;
-    this.mRinexLogger = mRinexLogger;
-    this.mBaseStation = mBaseStation;
-    this.mFileLogger = mFileLogger;
-    }
-
 
 
     @Override
@@ -165,6 +153,22 @@ public class HomeFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    public void setRealTimePositionCalculator(RealTimePositionCalculator mRealTimePositionCalculator) {
+        this.mRealTimePositionCalculator = mRealTimePositionCalculator;
+    }
+
+    public void setFileLogger(FileLogger mFileLogger) {
+        this.mFileLogger = mFileLogger;
+    }
+
+    public void setRinexLogger(RinexLogger mRinexLogger) {
+        this.mRinexLogger = mRinexLogger;
+    }
+
+    public void setBaseStation(BaseStation mBaseStation) {
+        this.mBaseStation = mBaseStation;
     }
 
     /** A facade for Home UI related operations. */

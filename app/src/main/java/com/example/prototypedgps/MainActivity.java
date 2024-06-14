@@ -79,12 +79,18 @@ public class MainActivity extends AppCompatActivity{
         mMeasurementProvider.registerMeasurements();
         mMeasurementProvider.registerStatus();
 
+        HomeFragment homeFragment = new HomeFragment();
+        homeFragment.setRealTimePositionCalculator(mRealTimePositionCalculator);
+        homeFragment.setFileLogger(mFileLogger);
+        homeFragment.setRinexLogger(mRinexLogger);
+        homeFragment.setBaseStation(mBaseStation);
+
 
         // The fragmentManager need to be created juste once
         FragmentManager fragmentManager = getSupportFragmentManager();
         // Load default Fragment
         fragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, new HomeFragment(mRealTimePositionCalculator, mFileLogger, mRinexLogger,mBaseStation), null)
+                .replace(R.id.fragment_container, homeFragment, null)
                 .setReorderingAllowed(true)
                 .commit();
 
@@ -94,7 +100,7 @@ public class MainActivity extends AppCompatActivity{
         // Navigation View
         BottomNavigationView navigationView = findViewById(R.id.bottom_nav);
         Map<Integer, Fragment> fragmentMap = new HashMap<>();
-        fragmentMap.put(R.id.navigation_home, new HomeFragment(mRealTimePositionCalculator, mFileLogger, mRinexLogger,mBaseStation));
+        fragmentMap.put(R.id.navigation_home, homeFragment);
         fragmentMap.put(R.id.navigation_status, new StatusFragment(mRealTimePositionCalculator));
         fragmentMap.put(R.id.navigation_notifications, new BaseFragment());
         navigationView.setOnItemSelectedListener(item -> {
