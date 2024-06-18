@@ -389,9 +389,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
             return;
         }
 
-
-        //computePos(doubleDiffArrayList, timeOfRover, nbrSatObserved, nbrSatObservedGps);
-
         if(mUiFragmentComponent.isComputeConstraint()){
             RealMatrix constraintPoint = mUiFragmentComponent.getCoordinateConstrainedPoint();
             computePosConstraint(doubleDiffArrayList, timeOfRover, nbrSatObserved, nbrSatObservedGps, constraintPoint);
@@ -408,7 +405,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
             ) {
                 System.out.println("hasElevation| satid : " + mGnssStatus.getSvid(i) + " elev : " + mGnssStatus.getElevationDegrees(i));
                 return mGnssStatus.getElevationDegrees(i);
-
             }
         }
         return 0.0F;
@@ -516,7 +512,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
                 dx = new SingularValueDecomposition(A.transpose().multiply(W).multiply(P).multiply(A)).getSolver().getInverse().multiply(A.transpose()).multiply(W).multiply(P).multiply(dl);
 
-                // Update unknowns approximate vector
+                // Update unknown approximate vector
                 X_Rover = X_Rover.add(dx);
 
                 // Interruption criteria
@@ -665,7 +661,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 return;
             }
             try {
-                String result = computePosBiberToString(res);
+                String result = res.resultToString();
                 mFileWriter.write(result);
 
                 if (mUiFragmentComponent != null) {
@@ -678,11 +674,217 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
     }
 
+    private void computePos(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover, int nbrSatObserved, int nbrObservationGps) {
+
+        // Class to storage the results
+        Results res = new Results();
+
+        // Parameters
+        // A priori error on observation [m]
+        double observationResidual = 0.3;
+        // Biber constant to construct matrix of weight W
+        double constantMEstimator = 2.5;
+
+        // Get position of base station
+        RealMatrix X_Base = mBaseStation.getStationaryAntenna();
+        // Get current Ephemeris
+        Ephemeris.GpsNavMessageProto gpsNavMessageProto = mEphemerisManager.getmHardwareGpsNavMessageProto();
+
+        // Number of observation and unknowns
+        int nbrObservations = doubleDiffArrayList.size() + 3;
+        int nbrUnknowns = 3;
+
+        // Set approximate values for unknown parameters as coordinates of base station
+        RealMatrix X_Rover = X_Base;
+
+        // Initialization of the matrix
+        RealMatrix l = new BlockRealMatrix(nbrObservations, 1);
+        RealMatrix f0 = new BlockRealMatrix(nbrObservations, 1);
+        RealMatrix A = new BlockRealMatrix(nbrObservations, nbrUnknowns);
+
+        RealMatrix dx = null;
+        RealMatrix dl = null;
+        RealMatrix P = null;
+
+        // Stochastic model
+        double sigma0 = 1.0;
+        RealMatrix Kll = new BlockRealMatrix(nbrObservations, nbrObservations);
+
+        // Compute iteration
+        boolean cont = true;
+        int nbr_iteration = 0;
+
+        while (cont) {
+
+            // Fill the matrix by going through each observation
+            int idObs = 0;
+            for (DoubleDiff doubleDiff : doubleDiffArrayList) {
+
+                double doubleDiffVal = doubleDiff.getDoubleDiff();
+
+                // Fill matrix l
+                l.setEntry(idObs, 0, doubleDiffVal);
+
+                // Fill matrix A by numerical derivation of the observation equation
+                double f = computeObsEquation(X_Rover, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+
+                // Component x
+                RealMatrix X_Rover_dx = X_Rover.copy();
+                X_Rover_dx.addToEntry(0, 0, 1.0);
+                double f_dx = computeObsEquation(X_Rover_dx, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+                A.setEntry(idObs, 0, f_dx - f);
+
+                // Component y
+                RealMatrix X_Rover_dy = X_Rover.copy();
+                X_Rover_dy.addToEntry(1, 0, 1.0);
+                double f_dy = computeObsEquation(X_Rover_dy, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+                A.setEntry(idObs, 1, f_dy - f);
+
+                // Component z
+                RealMatrix X_Rover_dz = X_Rover.copy();
+                X_Rover_dz.addToEntry(2, 0, 1.0);
+                double f_dz = computeObsEquation(X_Rover_dz, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+                A.setEntry(idObs, 2, f_dz - f);
+
+                // Fill f0
+                f0.setEntry(idObs, 0, computeObsEquation(X_Rover, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base));
+
+                // Fill Kll
+                Kll.setEntry(idObs,idObs,observationResidual);
+
+                idObs += 1;
+            }
+
+            RealMatrix Qll = Kll.scalarMultiply(1 / (sigma0 * sigma0));
+            P = new SingularValueDecomposition(Qll).getSolver().getInverse();
+            dl = l.subtract(f0);
+
+            dx = new SingularValueDecomposition(A.transpose().multiply(P).multiply(A)).getSolver().getInverse().multiply(A.transpose()).multiply(P).multiply(dl);
+
+            // Update unknown approximate vector
+            X_Rover = X_Rover.add(dx);
+
+            // Interruption criteria
+            double maxNorm = 0.0;
+            for (int i = 0; i < dx.getRowDimension(); i++) {
+                double absValue = Math.abs(dx.getEntry(i, 0));
+                if (absValue > maxNorm) {
+                    maxNorm = absValue;
+                }
+            }
+
+            if (maxNorm <= 1e-3) {
+                cont = false;
+            }
+            if (nbr_iteration > 10){
+                res.status = "no convergence, number of iteration > 10";
+                cont = false;
+            }
+
+            // Update iteration for convergence of dx
+            nbr_iteration++;
+        }
+
+        // Compute residuals v
+        RealMatrix v = A.multiply(dx).subtract(dl);
+        // Cofactor matrix of estimated parameters
+        RealMatrix Qxx = new SingularValueDecomposition(A.transpose().multiply(P).multiply(A)).getSolver().getInverse();
+
+        // Empirical standard deviation of unit weight
+        double s0 = Math.sqrt(v.transpose().multiply(P).multiply(v).getEntry(0, 0) / (nbrObservations - nbrUnknowns));
+        // Variance-covariance matrix of estimated parameters
+        RealMatrix Kxx = Qxx.scalarMultiply(s0);
+
+        //Indicators dilution of precision (DOPs)
+        double GDOP = Math.sqrt(Qxx.getTrace());
+        double PDOP = Math.sqrt(Qxx.getTrace());
+
+        // Param ellipsoid Bessel
+        double[] ellParam = ellBesselParam();
+        double[] ellCoordinate = cart2ell(Constants.ELL_A_GRS80, ellParam[0], X_Rover);
+
+        double lat0 = Math.toRadians(ellCoordinate[1]);
+        double lon0 = Math.toRadians(ellCoordinate[0]);
+
+        double sinLat0 = Math.sin(lat0);
+        double cosLat0 = Math.cos(lat0);
+        double sinLon0 = Math.sin(lon0);
+        double cosLon0 = Math.cos(lon0);
+
+        double[][] rotation = new double[][]{
+                {-sinLat0 * cosLon0, -sinLat0 * sinLon0, cosLat0},
+                {-sinLon0, cosLon0, 0},
+                {cosLat0 * cosLon0, cosLat0 * sinLon0, sinLat0}
+        };
+
+        RealMatrix matrixR = new Array2DRowRealMatrix(rotation);
+
+        RealMatrix matrixTopo = matrixR.multiply(Qxx.multiply(matrixR.transpose()));
+
+        // HDOP and VDOP
+        double HDOP = Math.sqrt(matrixTopo.getEntry(0, 0) + matrixTopo.getEntry(1, 1));
+        double VDOP = Math.sqrt(matrixTopo.getEntry(2, 2));
+
+        // Variance-covariance matrix of estimated parameters in topocentric system
+        RealMatrix KxxTopo = matrixR.multiply(Kxx.multiply(matrixR.transpose()));
+        double sigmaEast = Math.sqrt(KxxTopo.getEntry(1,1));
+        double sigmaNorth = Math.sqrt(KxxTopo.getEntry(0,0));
+        double sigmaHeight = Math.sqrt(KxxTopo.getEntry(2,2));
+
+        // Update res in UI
+        mUiFragmentComponent.incrementResultCounter();
+        ArrayList<Double> MN95 = CHTRS95toMN95(X_Rover);
+        mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0), MN95.get(1), MN95.get(2));
+        mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservationGps, nbrObservations, PDOP, VDOP, HDOP, (s0/sigma0), sigmaEast, sigmaNorth, sigmaHeight);
+
+        // Save data in Result class
+        res.status = "ok";
+        res.s0 = s0;
+        res.sigma0 = sigma0;
+        res.X_Rover = X_Rover;
+        res.Kxx = Kxx;
+        res.GDOP = GDOP;
+        res.PDOP = PDOP;
+        res.VDOP = VDOP;
+        res.HDOP = HDOP;
+        res.Kll = Kll;
+        res.doubleDiffArrayList = doubleDiffArrayList;
+        res.v = v;
+        res.nbrSatObserved = nbrSatObserved;
+        res.nbrObservationsGps = nbrObservationGps;
+        res.sigmaEast = sigmaEast;
+        res.sigmaNorth = sigmaNorth;
+        res.sigmaHeight = sigmaHeight;
+
+
+
+        synchronized (mFileLock) {
+            if (mFileWriter == null) {
+                return;
+            }
+            try {
+                String result = res.resultToString();
+                mFileWriter.write(result);
+
+                if (mUiFragmentComponent != null) {
+                    mUiFragmentComponent.incrementDetailedResultsCounter();
+                }
+            } catch (IOException e) {
+                logException(ERROR_WRITING_FILE, e);
+            }
+        }
+    }
 
     private void computePosConstraint(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover, int nbrSatObserved, int nbrObservationGps, RealMatrix constraintPoint) {
 
         // Class to storage the results
         Results res = new Results();
+
+        // Parameters
+        // A priori error on observation [m]
+        double observationResidual = 0.3;
+        // Biber constant to construct matrix of weight W
+        double constantMEstimator = 2.5;
 
         // Get position of base station
         RealMatrix X_Base = mBaseStation.getStationaryAntenna();
@@ -695,45 +897,35 @@ public class RealTimePositionCalculator implements MeasurementListener {
         int nbrConstraint = 3;
 
         // Set approximate values for unknown parameters as coordinates of base station
-        RealMatrix unknown = X_Base;
+        RealMatrix X_Rover = X_Base;
 
         // Initialization of the matrix
         RealMatrix l = new BlockRealMatrix(nbrObservations, 1);
         RealMatrix f0 = new BlockRealMatrix(nbrObservations, 1);
         RealMatrix A = new BlockRealMatrix(nbrObservations, nbrUnknowns);
 
+        RealMatrix dx = null;
+        RealMatrix dl = null;
+        RealMatrix P = null;
+
+        // Matrix for constrained calculation
         RealMatrix C = new Array2DRowRealMatrix(new double[][]{
                 {1.0,0.0,0.0},
                 {0.0,1.0,0.0},
                 {0.0,0.0,1.0}
         });
-        RealMatrix t;
         RealMatrix dX;
         RealMatrix Zcc = new BlockRealMatrix(nbrConstraint,nbrConstraint);
-
-
-        RealMatrix dx = null;
-        RealMatrix dl = null;
 
         // Stochastic model
         double sigma0 = 1.0;
         RealMatrix Kll = new BlockRealMatrix(nbrObservations, nbrObservations);
-        RealMatrix Qll;
-        RealMatrix P = null;
 
-
-        RealMatrix Qxx;
-        RealMatrix v;
-        RealMatrix Kxx;
-
-        // Compute a iteration
+        // Compute iteration
         boolean cont = true;
-        boolean first_convergence = false;
-        int nbr_iter = 0;
+        int nbr_iteration = 0;
 
         while (cont) {
-
-            nbr_iter++;
 
             // Fill the matrix by going through each observation
             int idObs = 0;
@@ -745,44 +937,40 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 l.setEntry(idObs, 0, doubleDiffVal);
 
                 // Fill matrix A by numerical derivation of the observation equation
-                double f = computeObsEquation(unknown, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+                double f = computeObsEquation(X_Rover, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
 
                 // Component x
-                RealMatrix derivatives_x = unknown.copy();
-                derivatives_x.addToEntry(0, 0, 1.0);
-                double f_dx = computeObsEquation(derivatives_x, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+                RealMatrix X_Rover_dx = X_Rover.copy();
+                X_Rover_dx.addToEntry(0, 0, 1.0);
+                double f_dx = computeObsEquation(X_Rover_dx, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
                 A.setEntry(idObs, 0, f_dx - f);
 
                 // Component y
-                RealMatrix derivatives_y = unknown.copy();
-                derivatives_y.addToEntry(1, 0, 1.0);
-                double f_dy = computeObsEquation(derivatives_y, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+                RealMatrix X_Rover_dy = X_Rover.copy();
+                X_Rover_dy.addToEntry(1, 0, 1.0);
+                double f_dy = computeObsEquation(X_Rover_dy, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
                 A.setEntry(idObs, 1, f_dy - f);
 
                 // Component z
-                RealMatrix derivatives_z = unknown.copy();
-                derivatives_z.addToEntry(2, 0, 1.0);
-                double f_dz = computeObsEquation(derivatives_z, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
+                RealMatrix X_Rover_dz = X_Rover.copy();
+                X_Rover_dz.addToEntry(2, 0, 1.0);
+                double f_dz = computeObsEquation(X_Rover_dz, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
                 A.setEntry(idObs, 2, f_dz - f);
 
                 // Fill f0
-                f0.setEntry(idObs, 0, computeObsEquation(unknown, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base));
+                f0.setEntry(idObs, 0, computeObsEquation(X_Rover, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base));
 
-                // Fill K0
-                if (!first_convergence) {
-                    Kll.setEntry(idObs, idObs, 1.5);
-                }
+                // Fill Kll
+                Kll.setEntry(idObs,idObs,observationResidual);
 
                 idObs += 1;
             }
 
-
-            dl = l.subtract(f0);
-            t = constraintPoint.subtract(unknown);
-
-            Qll = Kll.scalarMultiply(1 / (sigma0 * sigma0));
+            RealMatrix Qll = Kll.scalarMultiply(1 / (sigma0 * sigma0));
             P = new SingularValueDecomposition(Qll).getSolver().getInverse();
+            dl = l.subtract(f0);
 
+            RealMatrix t = constraintPoint.subtract(X_Rover);
             RealMatrix N = A.transpose().multiply(P).multiply(A);
             RealMatrix b = A.transpose().multiply(P).multiply(dl);
 
@@ -803,32 +991,39 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             dx = dX.getSubMatrix(0,nbrUnknowns-1,0,0);
 
-            // Update unknowns vector
-            unknown = unknown.add(dx);
+            // Update unknown approximate vector
+            X_Rover = X_Rover.add(dx);
 
-            if (first_convergence && dx.getFrobeniusNorm() <= 1e-3) {
+            // Interruption criteria
+            double maxNorm = 0.0;
+            for (int i = 0; i < dx.getRowDimension(); i++) {
+                double absValue = Math.abs(dx.getEntry(i, 0));
+                if (absValue > maxNorm) {
+                    maxNorm = absValue;
+                }
+            }
+
+            if (maxNorm <= 1e-3) {
                 cont = false;
-                System.out.println("computePos| Convergence");
             }
-
-            if (!first_convergence && dx.getFrobeniusNorm() <= 1e-3) {
-                first_convergence = true;
-            }
-
-            if (nbr_iter >= 10) {
+            if (nbr_iteration > 10){
+                res.status = "no convergence, number of iteration > 10";
                 cont = false;
-                System.out.println("computePos| Number of iteration exceeded max iteration (10)");
             }
+
+            // Update iteration for convergence of dx
+            nbr_iteration++;
         }
 
-        System.out.println("computePos| X_Rover: " + unknown);
+        // Compute residuals v
+        RealMatrix v = A.multiply(dx).subtract(dl);
+        // Cofactor matrix of estimated parameters
+        RealMatrix Qxx = new SingularValueDecomposition(A.transpose().multiply(P).multiply(A)).getSolver().getInverse();
 
-        v = A.multiply(dx).subtract(dl);
-        double vTPv = v.transpose().multiply(P).multiply(v).getEntry(0, 0);
-        double s0 = Math.sqrt(vTPv / (nbrObservations - nbrUnknowns));
-        Qxx = new SingularValueDecomposition(A.transpose().multiply(P).multiply(A)).getSolver().getInverse();
-
-        Kxx = Qxx.scalarMultiply(s0);
+        // Empirical standard deviation of unit weight
+        double s0 = Math.sqrt(v.transpose().multiply(P).multiply(v).getEntry(0, 0) / (nbrObservations - nbrUnknowns));
+        // Variance-covariance matrix of estimated parameters
+        RealMatrix Kxx = Qxx.scalarMultiply(s0);
 
         //Indicators dilution of precision (DOPs)
         double GDOP = Math.sqrt(Qxx.getTrace());
@@ -836,8 +1031,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
         // Param ellipsoid Bessel
         double[] ellParam = ellBesselParam();
-        double e = ellParam[0];
-        double[] ellCoordinate = cart2ell(Constants.ELL_A_GRS80, e, unknown);
+        double[] ellCoordinate = cart2ell(Constants.ELL_A_GRS80, ellParam[0], X_Rover);
 
         double lat0 = Math.toRadians(ellCoordinate[1]);
         double lon0 = Math.toRadians(ellCoordinate[0]);
@@ -855,188 +1049,26 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
         RealMatrix matrixR = new Array2DRowRealMatrix(rotation);
 
-        // Calculate temporary matrix
         RealMatrix matrixTopo = matrixR.multiply(Qxx.multiply(matrixR.transpose()));
-        // Extract HDOP and VDOP
+
+        // HDOP and VDOP
         double HDOP = Math.sqrt(matrixTopo.getEntry(0, 0) + matrixTopo.getEntry(1, 1));
         double VDOP = Math.sqrt(matrixTopo.getEntry(2, 2));
 
-        res.epoch = timeOfRover;
-        res.nbrUnknowns = nbrUnknowns;
-        res.nbrObs = nbrObservations;
-        res.nbrIteration = nbr_iter;
-        res.s0 = s0;
-        res.sigma0 = sigma0;
-        res.X_Rover = unknown;
-        res.Kxx = Kxx;
-        res.GDOP = GDOP;
-        res.PDOP = PDOP;
-        res.VDOP = VDOP;
-        res.HDOP = HDOP;
-        res.Kll = Kll;
-        res.doubleDiffArrayList = doubleDiffArrayList;
-        res.v = v;
-        res.nbrSatObserved = nbrSatObserved;
-        res.nbrObservationsGps = nbrObservationGps;
+        // Variance-covariance matrix of estimated parameters in topocentric system
+        RealMatrix KxxTopo = matrixR.multiply(Kxx.multiply(matrixR.transpose()));
+        double sigmaEast = Math.sqrt(KxxTopo.getEntry(1,1));
+        double sigmaNorth = Math.sqrt(KxxTopo.getEntry(0,0));
+        double sigmaHeight = Math.sqrt(KxxTopo.getEntry(2,2));
 
         // Update res in UI
         mUiFragmentComponent.incrementResultCounter();
-        ArrayList<Double> MN95 = CHTRS95toMN95(res.X_Rover);
+        ArrayList<Double> MN95 = CHTRS95toMN95(X_Rover);
         mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0), MN95.get(1), MN95.get(2));
-        mUiFragmentComponent.updateRes(res.nbrSatObserved, res.nbrObservationsGps, nbrObservations, res.PDOP, res.VDOP, res.HDOP, (res.s0 / res.sigma0), 0.0, 0.0, 0.0);
-    }
+        mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservationGps, nbrObservations, PDOP, VDOP, HDOP, (s0/sigma0), sigmaEast, sigmaNorth, sigmaHeight);
 
-    private void computePos(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover, int nbrSatObserved, int nbrObservationGps) {
-
-        Results res = new Results();
-
-        int nbrObservations = doubleDiffArrayList.size() + 3;
-        int nbrUnknowns = 3;
-
-        RealMatrix X_Base = mBaseStation.getStationaryAntenna();
-        RealMatrix X_Rover = X_Base;
-
-        // Ephemeris
-        Ephemeris.GpsNavMessageProto gpsNavMessageProto = mEphemerisManager.getmHardwareGpsNavMessageProto();
-
-        // Initialization of the matrix
-        RealMatrix l = new BlockRealMatrix(nbrObservations, 1);
-        RealMatrix f0 = new BlockRealMatrix(nbrObservations, 1);
-        RealMatrix Kll = new BlockRealMatrix(nbrObservations, nbrObservations);
-        RealMatrix A = new BlockRealMatrix(nbrObservations, nbrUnknowns);
-
-        RealMatrix dx = null;
-        RealMatrix dl = null;
-        double sigma0 = 1.0;
-        RealMatrix Qll;
-        RealMatrix P = null;
-        RealMatrix Qxx;
-        RealMatrix v;
-        double s0;
-        double GDOP;
-        RealMatrix Kxx;
-
-
-        // Compute a iteration
-        boolean cont = true;
-        boolean first_convergence = false;
-        int nbr_iter = 0;
-
-        while (cont) {
-
-            nbr_iter++;
-
-            // Fill the matrix by going through each observation
-            int idObs = 0;
-            for (DoubleDiff doubleDiff : doubleDiffArrayList) {
-
-                double doubleDiffVal = doubleDiff.getDoubleDiff();
-
-                // Fill matrix l
-                l.setEntry(idObs, 0, doubleDiffVal);
-
-                // Fill matrix A by numerical derivation of the observation equation
-                double f = computeObsEquation(X_Rover, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
-
-                // Component x
-                RealMatrix derivatives_x = X_Rover.copy();
-                derivatives_x.addToEntry(0, 0, 1.0);
-                double f_dx = computeObsEquation(derivatives_x, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
-                A.setEntry(idObs, 0, f_dx - f);
-
-                // Component y
-                RealMatrix derivatives_y = X_Rover.copy();
-                derivatives_y.addToEntry(1, 0, 1.0);
-                double f_dy = computeObsEquation(derivatives_y, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
-                A.setEntry(idObs, 1, f_dy - f);
-
-                // Component z
-                RealMatrix derivatives_z = X_Rover.copy();
-                derivatives_z.addToEntry(2, 0, 1.0);
-                double f_dz = computeObsEquation(derivatives_z, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base);
-                A.setEntry(idObs, 2, f_dz - f);
-
-                // Fill f0
-                f0.setEntry(idObs, 0, computeObsEquation(X_Rover, doubleDiff, gpsNavMessageProto, timeOfRover, X_Base));
-
-                // Fill K0
-                if (!first_convergence) {
-                    Kll.setEntry(idObs, idObs, 1.0);
-                }
-                idObs += 1;
-            }
-
-            dl = l.subtract(f0);
-            Qll = Kll.scalarMultiply(1 / (sigma0 * sigma0));
-            P = new SingularValueDecomposition(Qll).getSolver().getInverse();
-
-            dx = new SingularValueDecomposition(A.transpose().multiply(P).multiply(A)).getSolver().getInverse().multiply(A.transpose()).multiply(P).multiply(dl);
-
-            // Update unknowns vector
-            X_Rover = X_Rover.add(dx);
-
-            if (first_convergence && dx.getFrobeniusNorm() <= 1e-3) {
-                cont = false;
-                System.out.println("computePos| Convergence");
-            }
-
-            if (!first_convergence && dx.getFrobeniusNorm() <= 1e-3) {
-                first_convergence = true;
-            }
-
-            if (nbr_iter >= 10) {
-                cont = false;
-                System.out.println("computePos| Number of iteration exceeded max iteration (10)");
-            }
-        }
-
-        System.out.println("computePos| X_Rover: " + X_Rover);
-
-        v = A.multiply(dx).subtract(dl);
-        double vTPv = v.transpose().multiply(P).multiply(v).getEntry(0, 0);
-        s0 = Math.sqrt(vTPv / (nbrObservations - nbrUnknowns));
-        Qxx = new SingularValueDecomposition(A.transpose().multiply(P).multiply(A)).getSolver().getInverse();
-
-        Kxx = Qxx.scalarMultiply(s0);
-
-        //Indicators dilution of precision (DOPs)
-        GDOP = Math.sqrt(Qxx.getTrace());
-        double PDOP = Math.sqrt(Qxx.getTrace());
-
-
-        // Param ellipsoid Bessel
-        double[] ellParam = ellBesselParam();
-        double e = ellParam[0];
-        double[] ellCoordinate = cart2ell(Constants.ELL_A_GRS80, e, X_Rover);
-
-        double lat0 = Math.toRadians(ellCoordinate[1]);
-        double lon0 = Math.toRadians(ellCoordinate[0]);
-
-        double sinLat0 = Math.sin(lat0);
-        double cosLat0 = Math.cos(lat0);
-        double sinLon0 = Math.sin(lon0);
-        double cosLon0 = Math.cos(lon0);
-
-        double[][] rotation = new double[][]{
-                {-sinLat0 * cosLon0, -sinLat0 * sinLon0, cosLat0},
-                {-sinLon0, cosLon0, 0},
-                {cosLat0 * cosLon0, cosLat0 * sinLon0, sinLat0}
-        };
-
-        RealMatrix matrixR = new Array2DRowRealMatrix(rotation);
-
-        // Calculate temporary matrix
-        RealMatrix matrixTopo = matrixR.multiply(Qxx.multiply(matrixR.transpose()));
-        // Extract HDOP and VDOP
-        double HDOP = Math.sqrt(matrixTopo.getEntry(0, 0) + matrixTopo.getEntry(1, 1));
-        double VDOP = Math.sqrt(matrixTopo.getEntry(2, 2));
-
-
-
-        res.epoch = timeOfRover;
-        res.nbrUnknowns = nbrUnknowns;
-        res.nbrObs = nbrObservations;
-        res.nbrIteration = nbr_iter;
+        // Save data in Result class
+        res.status = "ok";
         res.s0 = s0;
         res.sigma0 = sigma0;
         res.X_Rover = X_Rover;
@@ -1050,90 +1082,28 @@ public class RealTimePositionCalculator implements MeasurementListener {
         res.v = v;
         res.nbrSatObserved = nbrSatObserved;
         res.nbrObservationsGps = nbrObservationGps;
+        res.sigmaEast = sigmaEast;
+        res.sigmaNorth = sigmaNorth;
+        res.sigmaHeight = sigmaHeight;
 
+        synchronized (mFileLock) {
+            if (mFileWriter == null) {
+                return;
+            }
+            try {
+                String result = res.resultToString();
+                mFileWriter.write(result);
 
-        // Update res in UI
-        mUiFragmentComponent.incrementResultCounter();
-        ArrayList<Double> MN95 = CHTRS95toMN95(res.X_Rover);
-        mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0), MN95.get(1), MN95.get(2));
-        mUiFragmentComponent.updateRes(res.nbrSatObserved, res.nbrObservationsGps, nbrObservations, res.PDOP, res.VDOP, res.HDOP, (res.s0 / res.sigma0), 0.0, 0.0, 0.0);
-    }
-
-    private String computePosBiberToString(Results res) {
-
-        Date currentdate = new Date();
-
-        ArrayList<Double> MN95 = CHTRS95toMN95(res.X_Rover);
-
-        StringBuilder stringBuilder = new StringBuilder();
-
-        StringBuilder doubleDiffObsStringBuilder = new StringBuilder();
-
-        for (DoubleDiff DD : res.doubleDiffArrayList) {
-            double sigma_l = res.Kll.getEntry(DD.iObs - 1, DD.iObs - 1);
-            String str = String.format(Locale.US, "%3s %3s %3.0f %3s %9.3f %9.3f %9.3f %13.3f %13.3f %13.3f %13.3f",
-                    DD.getPRN1(), DD.getPRN2(), DD.getElevationPRN2(), "C1C", //TODO: get signal auto
-                    DD.getDoubleDiff(),
-                    sigma_l,
-                    res.v.getEntry(DD.iObs - 1, 0),
-                    DD.zeroDiffBase.get(0), DD.zeroDiffBase.get(1),
-                    DD.zeroDiffRover.get(0), DD.zeroDiffRover.get(1));
-            doubleDiffObsStringBuilder.append(str).append("\n");
+                if (mUiFragmentComponent != null) {
+                    mUiFragmentComponent.incrementDetailedResultsCounter();
+                }
+            } catch (IOException e) {
+                logException(ERROR_WRITING_FILE, e);
+            }
         }
-
-
-        String resBuilder = "---------------------------------------------------------------------------\n" +
-                "Differential Positioning (pseudo-distances) / Elisa Borlat / HEIG-VD\n" +
-                currentdate + " \n" +
-                "---------------------------------------------------------------------------" + "\n\n" +
-
-                "Global stats :" + "\n" +
-                "=======================" + "\n" +
-                "Nbr observations : " + res.nbrObs + "\n" +
-                "Nbr unknowns : " + res.nbrUnknowns + "\n" +
-                "Nbr iteration : " + res.nbrIteration + " (10)\n" +
-                "s0/sigma0 : " + res.s0 / res.sigma0 + "\n\n" +
-
-                "Epoch : " + "\n" +
-                "=======" + "\n" +
-                String.format("%-6s %-6s %6s %12s %2s %2s %4s %2s %2s %9s", "N0", "EPOCH", "MJD", "MJD     ", "DD", "MM", "YYYY", "hh", "mm", "ss.ssssss") + "\n" +
-                String.format("%-6s %-6s %6s %12s %10s %15s", "[-]", "[-]", "[day]", "[sec of day]", "[GPST]", "[GPST]") + "\n\n" +
-
-                "Double differences observations (ePRN1 = " + res.doubleDiffArrayList.get(0).elevationPRN1 + ") : " + "\n" +
-                "=================================" + "\n" +
-                String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "PRN1", "PRN2", "ePRN2", "SIG", "DD OBS", "E.T", "v", "ZD(BASE,PRN1)", "ZD(BASE,PRN2)", "ZD(ROVER,PRN1)", "ZD(ROVER,PRN2)") +
-                String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "", "", "[°]", "", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]") +
-
-                doubleDiffObsStringBuilder + "\n" +
-
-                "Estimated parameters of the rover:" + "\n" +
-                "==================================" + "\n" +
-                String.format(Locale.US, "X WGS84 : %13.3f [m] +/- %4.3f [m] \n",
-                        res.X_Rover.getEntry(0, 0),
-                        Math.sqrt(Math.abs(res.Kxx.getEntry(0, 0)))) +
-                String.format(Locale.US, "Y WGS84 : %13.3f [m] +/- %4.3f [m] \n",
-                        res.X_Rover.getEntry(1, 0),
-                        Math.sqrt(Math.abs(res.Kxx.getEntry(1, 0)))) +
-                String.format(Locale.US, "Z WGS84 : %13.3f [m] +/- %4.3f [m] \n",
-                        res.X_Rover.getEntry(2, 0),
-                        Math.sqrt(Math.abs(res.Kxx.getEntry(2, 0)))) + "\n" + "\n" +
-
-                "Derivative parameters:" + "\n" +
-                "========================================" + "\n" +
-                String.format(Locale.US, "E MN95 : %13.3f [m] \n",
-                        MN95.get(0)) + // TODO : function MN95
-                String.format(Locale.US, "N MN95 : %13.3f [m] \n",
-                        MN95.get(1)) +
-                String.format(Locale.US, "h Bessel : %11.3f [m] \n\n",
-                        MN95.get(2)) +
-
-                String.format(Locale.US, "GDOP : %.1f [-]", res.GDOP);
-
-        stringBuilder.append(resBuilder).append("\n");
-
-        return stringBuilder.toString();
-
     }
+
+
 
 
     private static class Results {
@@ -1170,6 +1140,81 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
         private ArrayList<DoubleDiff> doubleDiffArrayList;
 
+        public String resultToString() {
+
+            Date currentdate = new Date();
+
+            ArrayList<Double> MN95 = CHTRS95toMN95(X_Rover);
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            StringBuilder doubleDiffObsStringBuilder = new StringBuilder();
+
+            for (DoubleDiff DD : doubleDiffArrayList) {
+                double sigma_l = Kll.getEntry(DD.iObs - 1, DD.iObs - 1);
+                String str = String.format(Locale.US, "%3s %3s %3.0f %3s %9.3f %9.3f %9.3f %13.3f %13.3f %13.3f %13.3f",
+                        DD.getPRN1(), DD.getPRN2(), DD.getElevationPRN2(), "C1C", //TODO: get signal auto
+                        DD.getDoubleDiff(),
+                        sigma_l,
+                        v.getEntry(DD.iObs - 1, 0),
+                        DD.zeroDiffBase.get(0), DD.zeroDiffBase.get(1),
+                        DD.zeroDiffRover.get(0), DD.zeroDiffRover.get(1));
+                doubleDiffObsStringBuilder.append(str).append("\n");
+            }
+
+
+            String resBuilder = "---------------------------------------------------------------------------\n" +
+                    "Differential Positioning (pseudo-distances) / Elisa Borlat / HEIG-VD\n" +
+                    currentdate + " \n" +
+                    "---------------------------------------------------------------------------" + "\n\n" +
+
+                    "Global stats :" + "\n" +
+                    "=======================" + "\n" +
+                    "Nbr observations : " + nbrObs + "\n" +
+                    "Nbr unknowns : " + nbrUnknowns + "\n" +
+                    "Nbr iteration : " + nbrIteration + " (10)\n" +
+                    "s0/sigma0 : " + s0 / sigma0 + "\n\n" +
+
+                    "Epoch : " + "\n" +
+                    "=======" + "\n" +
+                    String.format("%-6s %-6s %6s %12s %2s %2s %4s %2s %2s %9s", "N0", "EPOCH", "MJD", "MJD     ", "DD", "MM", "YYYY", "hh", "mm", "ss.ssssss") + "\n" +
+                    String.format("%-6s %-6s %6s %12s %10s %15s", "[-]", "[-]", "[day]", "[sec of day]", "[GPST]", "[GPST]") + "\n\n" +
+
+                    "Double differences observations (ePRN1 = " + doubleDiffArrayList.get(0).elevationPRN1 + ") : " + "\n" +
+                    "=================================" + "\n" +
+                    String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "PRN1", "PRN2", "ePRN2", "SIG", "DD OBS", "E.T", "v", "ZD(BASE,PRN1)", "ZD(BASE,PRN2)", "ZD(ROVER,PRN1)", "ZD(ROVER,PRN2)") +
+                    String.format("%-4s %-4s %-4s %-3s %9s %9s %9s %13s %13s %13s %13s\n", "", "", "[°]", "", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]", "[m]") +
+
+                    doubleDiffObsStringBuilder + "\n" +
+
+                    "Estimated parameters of the rover:" + "\n" +
+                    "==================================" + "\n" +
+                    String.format(Locale.US, "X WGS84 : %13.3f [m] +/- %4.3f [m] \n",
+                            X_Rover.getEntry(0, 0),
+                            Math.sqrt(Math.abs(Kxx.getEntry(0, 0)))) +
+                    String.format(Locale.US, "Y WGS84 : %13.3f [m] +/- %4.3f [m] \n",
+                            X_Rover.getEntry(1, 0),
+                            Math.sqrt(Math.abs(Kxx.getEntry(1, 0)))) +
+                    String.format(Locale.US, "Z WGS84 : %13.3f [m] +/- %4.3f [m] \n",
+                            X_Rover.getEntry(2, 0),
+                            Math.sqrt(Math.abs(Kxx.getEntry(2, 0)))) + "\n" + "\n" +
+
+                    "Derivative parameters:" + "\n" +
+                    "========================================" + "\n" +
+                    String.format(Locale.US, "E MN95 : %13.3f [m] \n",
+                            MN95.get(0)) + // TODO : function MN95
+                    String.format(Locale.US, "N MN95 : %13.3f [m] \n",
+                            MN95.get(1)) +
+                    String.format(Locale.US, "h Bessel : %11.3f [m] \n\n",
+                            MN95.get(2)) +
+
+                    String.format(Locale.US, "GDOP : %.1f [-]", GDOP);
+
+            stringBuilder.append(resBuilder).append("\n");
+
+            return stringBuilder.toString();
+
+        }
     }
 
 
@@ -1427,7 +1472,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
         return X_WGS84;
     }
 
-    public ArrayList<Double> CHTRS95toMN95(RealMatrix X) {
+    public static ArrayList<Double> CHTRS95toMN95(RealMatrix X) {
 
         // Transformation CHTRS95 => CH1903+
         RealMatrix t = new Array2DRowRealMatrix(new double[][]{
