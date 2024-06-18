@@ -12,8 +12,6 @@ import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
-import androidx.fragment.app.FragmentActivity;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileFilter;
@@ -63,7 +61,7 @@ public class RinexLogger implements MeasurementListener {
     public void startNewLog() {
         synchronized (mFileLock) {
             firstMes=true;
-            mUiFragmentComponent.setRinexCounter(0);
+            mUiFragmentComponent.resetRinexCounter();
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
                 //baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
@@ -170,7 +168,6 @@ public class RinexLogger implements MeasurementListener {
                     logException(ERROR_WRITING_FILE, e);
                 }
         }
-
     }
 
     public void writeRinexHeader(String rinexHeader){
@@ -256,7 +253,7 @@ public class RinexLogger implements MeasurementListener {
             if (mes.getCn0DbHz() >= C_TO_N0_THRESHOLD_DB_HZ
                     && (mes.getState() & (1L << TOW_DECODED_MEASUREMENT_STATE_BIT)) != 0) {
 
-                /**maintaining constant the 'FullBiasNanos' instead of using the instantaneous value. This avoids the 256 ns
+                /*maintaining constant the 'FullBiasNanos' instead of using the instantaneous value. This avoids the 256 ns
                  jumps each 3 seconds that create a code-phase divergence due to the clock.*/
                 if (!set_clockbias) {
                     fullBiasNanos = gnssClock.getFullBiasNanos();
@@ -311,7 +308,6 @@ public class RinexLogger implements MeasurementListener {
             Calendar calendar = Calendar.getInstance();
             String header = rinexHeader(calendar, startTime);
             writeRinexHeader(header);
-            System.out.println("RinexLogger|Write Header");
             firstMes = false;
         }
         return builder.toString();
@@ -329,8 +325,8 @@ public class RinexLogger implements MeasurementListener {
         int minute = calendar.get(Calendar.MINUTE);
         int second = calendar.get(Calendar.SECOND);
 
-        String dateRinex = String.format("%04d%02d%02d", year, month, day);
-        String timeRinex = String.format("%02d%02d%02d", hour, minute, second);
+        String dateRinex = String.format(Locale.US,"%04d%02d%02d", year, month, day);
+        String timeRinex = String.format(Locale.US,"%02d%02d%02d", hour, minute, second);
 
         // Header
         String[] header = {"3.03", "", "OBSERVATION DATA", "G: GPS", "RINEX VERSION / TYPE"};
@@ -384,9 +380,6 @@ public class RinexLogger implements MeasurementListener {
             try {
                 mFileWriter.flush();
                 mFileWriter.close();
-                System.out.println("RinexLogger|FileWriter has been closed");
-                System.out.println("RinexLogger| Contain :" +mFileWriter);
-                System.out.println("RinexLogger|mFile :"+mFile.getPath());
                 mFileWriter = null;
             } catch (IOException e) {
                 logException("Unable to close all file streams.", e);

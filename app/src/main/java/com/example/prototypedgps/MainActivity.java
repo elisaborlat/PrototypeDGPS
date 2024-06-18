@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity{
         mBaseStation.registerRtcmMsg();
 
         // Init RealTimePositionCalculator
-        RealTimePositionCalculator mRealTimePositionCalculator = new RealTimePositionCalculator(mBaseStation, mEphemerisManager);
+        RealTimePositionCalculator mRealTimePositionCalculator = new RealTimePositionCalculator(mBaseStation, mEphemerisManager, this);
 
         FileLogger mFileLogger = new FileLogger(this);
         RinexLogger mRinexLogger = new RinexLogger(this);

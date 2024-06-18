@@ -27,7 +27,7 @@ public class StatusFragment extends Fragment {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private RealTimePositionCalculator mRealTimePositionCalculator;
+    private final RealTimePositionCalculator mRealTimePositionCalculator;
 
     private final StatusUIFragmentComponent mStatusUIFragmentComponent = new StatusUIFragmentComponent();
 
@@ -59,65 +59,22 @@ public class StatusFragment extends Fragment {
 
 
     public class StatusUIFragmentComponent {
-        public void updateTemp() {
-            handler.post(() -> {
-                Activity activity = getActivity();
-                if (activity != null) {
-                    binding.textView18.setText("Elisa Borlat");
-                    }
-            });
-        }
 
-        public void updateStatusTable(ArrayList<Map> allGpsSat){
+        public void updateStatusTable(ArrayList<Map<String,String>> allGpsSat){
             handler.post(() -> {
                 Activity activity = getActivity();
                 if (activity != null) {
                     int rowIndex = 1; // Start after header row
-                    for (Map satellite : allGpsSat) {
+                    for (Map<String,String> satellite : allGpsSat) {
                         updateOrAddRow(binding.tableLayoutStatus, satellite, rowIndex);
                         rowIndex++;
                     }
-
-                    // Remove extra rows if any
-                    /*
-                    while (rowIndex < binding.tableLayoutStatus.getChildCount()) {
-                        binding.tableLayoutStatus.removeViewAt(rowIndex);
-                    }
-
-                    for(Map sat: allGpsSat) {
-
-
-
-
-                        TextView column1 = new TextView(getContext());
-                        column1.setText( (String) sat.get("svId"));
-                        tableRow.addView(column1);
-
-                        TextView column2 = new TextView(getContext());
-                        column2.setText((String) sat.get("cn0DbHz"));
-                        tableRow.addView(column2);
-
-                        tableRow.addView(new TextView(getContext()));
-
-
-                        TextView column4 = new TextView(getContext());
-                        column4.setText((String) sat.get("elevation"));
-                        tableRow.addView(column4);
-
-                        TextView column5 = new TextView(getContext());
-                        column5.setText((String) sat.get("azimuth"));
-                        tableRow.addView(column5);
-
-                        binding.tableLayoutStatus.addView(tableRow);
-                    }
-
-                    binding.textView18.setText("Elisa Borlat");*/
                 }
             });
         }
     }
 
-    private void updateOrAddRow(TableLayout tableLayout, Map satellite, int rowIndex) {
+    private void updateOrAddRow(TableLayout tableLayout, Map<String,String> satellite, int rowIndex) {
         TableRow tableRow;
         if (rowIndex < tableLayout.getChildCount()) {
             // Update existing row
@@ -148,30 +105,6 @@ public class StatusFragment extends Fragment {
         textView.setText(text);
         textView.setPadding(8, 8, 8, 8);
         return textView;
-    }
-
-
-
-    private void generateTable(int numRows, int numCols) {
-        for (int row = 0; row < numRows; row++) {
-            TableRow tableRow = new TableRow(getContext());
-
-            for (int col = 0; col < numCols; col++) {
-                String cellId = "cell_" + row + "_" + col; // Unique ID for the cell
-                String cellValue = "Row " + row + ", Col " + col;
-
-                TextView textView = new TextView(getContext());
-                textView.setText(cellValue);
-                textView.setId(View.generateViewId()); // Unique ID for the TextView
-
-                // Set the cell ID as a tag for the TextView
-                //textView.setTag(R.id.cell_id, cellId);
-
-                tableRow.addView(textView);
-            }
-
-            //tableLayout.addView(tableRow);
-        }
     }
 
 }

@@ -5,9 +5,12 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 
@@ -17,8 +20,11 @@ import androidx.fragment.app.Fragment;
 
 import com.example.prototypedgps.databinding.FragmentMainBinding;
 
-import java.io.IOException;
+import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.RealMatrix;
+
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class HomeFragment extends Fragment {
@@ -44,6 +50,9 @@ public class HomeFragment extends Fragment {
         }
         if (mRealTimePositionCalculator != null) {
             mRealTimePositionCalculator.setUiFragmentComponent(mUiComponent);
+        }
+        if (mFileLogger != null) {
+            mFileLogger.setUiFragmentComponent(mUiComponent);
         }
 
 
@@ -74,28 +83,17 @@ public class HomeFragment extends Fragment {
                 mFileLogger.startNewLog();
             }
 
-            mUiComponent.setResultsCounter(0);
-
+            if (binding.switchDetailedResults.isChecked()) {
+                mRealTimePositionCalculator.startNewLog();
+            }
 
         });
 
         binding.buttonStopSend.setOnClickListener(v -> {
                     mFileLogger.send();
                     mRinexLogger.send();
-                    if (binding.switchResults.isChecked()){
-                        try {
-                            mRealTimePositionCalculator.saveDGPSResults();
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    if (binding.switchDetailedResults.isChecked()){
-                        try {
-                            mRealTimePositionCalculator.saveDetailedDGPSResults();
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
+                    mRealTimePositionCalculator.send();
+
             binding.buttonStopSend.setEnabled(false);
             binding.buttonStartLog.setEnabled(anySwitchOn());
 
@@ -139,6 +137,49 @@ public class HomeFragment extends Fragment {
             }
         });
 
+        binding.buttonpil6170.setOnClickListener(v -> {
+            String coordinateX = "4346326.472";
+            String coordinateY = "507584.445";
+            String coordinateZ = "4625432.791";
+        binding.editTextNumberDecimalCoordx.setText(coordinateX);
+        binding.editTextNumberDecimalCoordy.setText(coordinateY);
+        binding.editTextNumberDecimalCoordz.setText(coordinateZ);
+        });
+
+        binding.buttond01.setOnClickListener(v -> {
+            String coordinateX = "4346400.677";
+            String coordinateY = "507454.190";
+            String coordinateZ = "4625380.301";
+            binding.editTextNumberDecimalCoordx.setText(coordinateX);
+            binding.editTextNumberDecimalCoordy.setText(coordinateY);
+            binding.editTextNumberDecimalCoordz.setText(coordinateZ);
+
+        });
+
+        TextWatcher textWatcher = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                boolean allFieldsFilled =  !binding.editTextNumberDecimalCoordx.getText().toString().trim().isEmpty() &&
+                        !binding.editTextNumberDecimalCoordy.getText().toString().trim().isEmpty() &&
+                        !binding.editTextNumberDecimalCoordz.getText().toString().trim().isEmpty();
+                binding.switchRinex2.setEnabled(allFieldsFilled);
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+            }
+        };
+
+        binding.editTextNumberDecimalCoordx.addTextChangedListener(textWatcher);
+        binding.editTextNumberDecimalCoordy.addTextChangedListener(textWatcher);
+        binding.editTextNumberDecimalCoordz.addTextChangedListener(textWatcher);
+
         return binding.getRoot();
     }
 
@@ -174,37 +215,51 @@ public class HomeFragment extends Fragment {
     /** A facade for Home UI related operations. */
     public class HomeUIFragmentComponent{
 
-        private int rinexCounter = 0;
+        private final AtomicInteger rinexCounter = new AtomicInteger(0);
+        private final AtomicInteger resultsCounter = new AtomicInteger(0);
+        private final AtomicInteger rawCounter = new AtomicInteger(0);
 
-        private int resultsCounter = 0;
+        private final AtomicInteger detailedCounter = new AtomicInteger(0);
+
 
         private final Handler handler = new Handler(Looper.getMainLooper());
 
-        public void setRinexCounter(int rinexCount) {
-            rinexCounter = rinexCount;
+        public void resetRinexCounter() {
+            rinexCounter.set(0);
         }
-        public void setResultsCounter(int resCounter) {
-            resultsCounter = resCounter;
+        public void resetResultsCounter() {
+            resultsCounter.set(0);
         }
+
+        public void resetRawCounter() {
+            rawCounter.set(0);
+        }
+
+        public void resetDetailedCounter() {
+            detailedCounter.set(0);
+        }
+
         public void incrementRinexCounter() {
-            handler.post(() -> {
-                Activity activity = getActivity();
-                rinexCounter ++;
-                String resCounter = rinexCounter + " epochs";
-                if (activity != null) {
-                    binding.textView.setText(resCounter);
-                }
-            });
+            updateCounter(rinexCounter, binding.textView);
         }
 
         public void incrementResultCounter(){
+            updateCounter(resultsCounter, binding.textViewResCounter);
+        }
+
+        public void incrementRawCounter(){
+            updateCounter(rawCounter, binding.textViewRawCounter);
+        }
+
+        public void incrementDetailedResultsCounter(){
+            updateCounter(detailedCounter, binding.textViewResCounterDetailedResults);
+        }
+
+        private void updateCounter(AtomicInteger counter, TextView textViewBinding) {
             handler.post(() -> {
-                Activity activity = getActivity();
-                resultsCounter ++;
-                String resCounter = resultsCounter + " epochs";
-                if (activity != null) {
-                    binding.textViewResCounter.setText(resCounter);
-                }
+                int currentCounter = counter.incrementAndGet();  // Increment the counter
+                String resCounter = currentCounter+ " epochs";
+                textViewBinding.setText(resCounter);
             });
         }
 
@@ -219,7 +274,7 @@ public class HomeFragment extends Fragment {
             });
         }
 
-        public void updateRes(int nbrSatObserved, int nbrObservationsGps, int nbrObservations, double pdop, double vdop, double hdop, double sigma) {
+        public void updateRes(int nbrSatObserved, int nbrObservationsGps, int nbrObservations, double pdop, double vdop, double hdop, double sigma, double sigmaE, double sigmaN, double sigmaH) {
             handler.post(() -> {
                 Activity activity = getActivity();
                 if (activity != null) {
@@ -227,6 +282,9 @@ public class HomeFragment extends Fragment {
                     binding.textViewPDOP.setText(String.format(Locale.US,"%.1f",pdop));
                     binding.textViewHVDOP.setText(String.format(Locale.US, "%.1f / %.1f", hdop,vdop));
                     binding.textViewSigma.setText(String.format(Locale.US, "%.2f", sigma));
+                    binding.textViewSigmaE.setText(String.format(Locale.US, "%.2f", sigmaE));
+                    binding.textViewSigmaN.setText(String.format(Locale.US, "%.2f", sigmaN));
+                    binding.textViewSigmaH.setText(String.format(Locale.US, "%.2f", sigmaH));
 
                     if (sigma>3){
                         binding.textViewSigma.setTextColor(Color.RED);
@@ -244,6 +302,21 @@ public class HomeFragment extends Fragment {
                 if (activity != null) {
                     binding.textViewDecoded.setText(String.format(Locale.US, "%s", "Position of base station decoded"));
                     binding.textViewDecoded.setTextColor(Color.GREEN);}
+            });
+        }
+
+        public boolean isComputeConstraint(){
+            return binding.switchRinex2.isChecked();
+        }
+
+        public RealMatrix getCoordinateConstrainedPoint(){
+            double coordinateX = Double.parseDouble(binding.editTextNumberDecimalCoordx.getText().toString());
+            double coordinateY = Double.parseDouble(binding.editTextNumberDecimalCoordy.getText().toString());
+            double coordinateZ = Double.parseDouble(binding.editTextNumberDecimalCoordz.getText().toString());
+            return new Array2DRowRealMatrix(new double[][]{
+                    {coordinateX},
+                    {coordinateY},
+                    {coordinateZ}
             });
         }
     }

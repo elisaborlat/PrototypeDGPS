@@ -28,7 +28,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
-import android.widget.Toast;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileFilter;
@@ -61,6 +60,12 @@ public class FileLogger implements MeasurementListener {
     private BufferedWriter mFileWriter;
     private File mFile;
 
+    private HomeFragment.HomeUIFragmentComponent mUiFragmentComponent;
+
+
+    public synchronized void setUiFragmentComponent(HomeFragment.HomeUIFragmentComponent value) {
+        mUiFragmentComponent = value;
+    }
 
     public FileLogger(Context context) {
         this.mContext = context;
@@ -68,10 +73,8 @@ public class FileLogger implements MeasurementListener {
 
     /** Start a new file logging process. */
     public void startNewLog() {
-        System.out.println("debug| FileLogger startnewlog...");
+        mUiFragmentComponent.resetRawCounter();
         synchronized (mFileLock) {
-
-            System.out.println("debug FileLogger| lock mFileLock");
             File baseDirectory;
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
@@ -157,7 +160,6 @@ public class FileLogger implements MeasurementListener {
 
             if (mFileWriter != null) {
                 try {
-                    System.out.println("debug| FileWriter close");
                     mFileWriter.close();
                 } catch (IOException e) {
                     logException("Unable to close all file streams.", e);
@@ -167,7 +169,6 @@ public class FileLogger implements MeasurementListener {
 
             mFile = currentFile;
             mFileWriter = currentFileWriter;
-            System.out.println("FileLogger|mFileWriter");
             //Toast.makeText(mContext, "File opened: " + currentFilePath, Toast.LENGTH_SHORT).show();
 
             // To make sure that files do not fill up the external storage:
@@ -186,8 +187,6 @@ public class FileLogger implements MeasurementListener {
                 }
             }
         }
-        System.out.println("debug| FileLogger lock free.");
-        System.out.println("debug| FileLogger, mFileWriter"+ mFileWriter);
     }
 
     /**
@@ -239,6 +238,9 @@ public class FileLogger implements MeasurementListener {
             try {
                 mFileWriter.write(locationStream);
                 mFileWriter.newLine();
+                if (mUiFragmentComponent != null) {
+                    mUiFragmentComponent.incrementRawCounter();
+                }
             } catch (IOException e) {
                 logException(ERROR_WRITING_FILE, e);
             }
@@ -259,6 +261,9 @@ public class FileLogger implements MeasurementListener {
             for (GnssMeasurement measurement : event.getMeasurements()) {
                 try {
                     writeGnssMeasurementToFile(gnssClock, measurement);
+                    if (mUiFragmentComponent != null) {
+                        mUiFragmentComponent.incrementRawCounter();
+                    }
                 } catch (IOException e) {
                     logException(ERROR_WRITING_FILE, e);
                 }
@@ -296,6 +301,10 @@ public class FileLogger implements MeasurementListener {
             try {
                 mFileWriter.write(builder.toString());
                 mFileWriter.newLine();
+                if (mUiFragmentComponent != null) {
+                    mUiFragmentComponent.incrementRawCounter();
+                }
+
             } catch (IOException e) {
                 logException(ERROR_WRITING_FILE, e);
             }
@@ -318,6 +327,10 @@ public class FileLogger implements MeasurementListener {
             try {
                 mFileWriter.write(nmeaStream);
                 mFileWriter.newLine();
+                if (mUiFragmentComponent != null) {
+                    mUiFragmentComponent.incrementRawCounter();
+                }
+
             } catch (IOException e) {
                 logException(ERROR_WRITING_FILE, e);
             }
@@ -378,6 +391,7 @@ public class FileLogger implements MeasurementListener {
                                 : "");
         mFileWriter.write(measurementStream);
         mFileWriter.newLine();
+
     }
 
     private void logException(String errorMessage, Exception e) {
