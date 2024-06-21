@@ -4,10 +4,8 @@ import java.util.Locale;
 
 public class TimeE {
 
-    private static final long MILLISECONDS_IN_WEEK = 604800000L; // 7 jours en millisecondes
-    //private static final long GPS_EPOCH_MILLISECONDS = 315964800000L; // 6 janvier 1980 en millisecondes
-
-    private final double gpsTimeMilliseconds; // Temps GPS en millisecondes depuis le début du temps GPS
+    private final long MILLISECONDS_IN_WEEK = 604800000L; // 7 jours en milliseconds
+    private final double gpsTimeMilliseconds; // GPS Time in milliseconds since the beginning of gps time
     private final Cal gpsTimeCalendar;
     private final FormatTime gps;
 
@@ -20,11 +18,11 @@ public class TimeE {
         this.gpsTimeMilliseconds =  gps.integerPart*MILLISECONDS_IN_WEEK + gps.doublePart*1000;
     }
 
-    public TimeE(FormatTime gps) {
-        this.gpsTimeCalendar = gps2cal(gps);
-        this.gps = gps;
-        this.gpsTimeMilliseconds = gps.integerPart*MILLISECONDS_IN_WEEK + gps.doublePart*1000;
-        this.mjd = gps2mjd(gps);
+    public TimeE(FormatTime mjd) {
+        this.gpsTimeCalendar = mjd2cal(mjd);
+        this.gps = mjd2gps(mjd);
+        this.gpsTimeMilliseconds = gps.integerPart*MILLISECONDS_IN_WEEK + gps.doublePart*1000 ;
+        this.mjd = mjd;
     }
 
     public TimeE(double gpsTimeMilliseconds) {
@@ -34,19 +32,14 @@ public class TimeE {
         this.mjd = gps2mjd(gps);
     }
 
-    public static TimeE fromMjd(FormatTime mjd) {
-        FormatTime gps = mjd2gps(mjd);
-        return new TimeE(gps);
-    }
-
-    public Cal gps2cal(FormatTime gps) {
+    private Cal gps2cal(FormatTime gps) {
 
         FormatTime jd = gps2jd(gps);
 
         return jd2cal(jd);
     }
 
-    public FormatTime gps2jd(FormatTime gps2) {
+    private FormatTime gps2jd(FormatTime gps2) {
 
         Cal cal0 = new Cal(1980, 1, 6, 0, 0, 0.0);
         FormatTime jd0 = cal2jd(cal0);
@@ -75,15 +68,7 @@ public class TimeE {
         return gps.doublePart;
     }
 
-
-    public String toString() {
-        return "Temps GPS: " +
-                "\n- Millisecondes depuis le début du temps GPS: " + gpsTimeMilliseconds +
-                "\n- Temps calendaire (secondes): " + gpsTimeCalendar +
-                "\n- Semaine GPS: " + getGpsWeek() + "| TOW: " + getTow() ;
-    }
-
-    public static FormatTime cal2jd(Cal cal) {
+    private static FormatTime cal2jd(Cal cal) {
 
         int year = cal.getYear();
         int month = cal.getMonth();
@@ -104,7 +89,7 @@ public class TimeE {
         }
 
         double D = day + hour / 24.0 + minute / (24.0 * 60.0) + second / (24.0 * 3600.0);
-        int B = 2 - (int) Math.floor(Y / 100) + (int) Math.floor(Y / 400);
+        int B = 2 - (int) Math.floor(Y / 100.0) + (int) Math.floor(Y / 400.0);
 
         // Calculate Julian Day
         double jd = Math.floor(365.25 * (Y + 4716)) + Math.floor(30.6001 * (M + 1)) + D + B - 1524.5;
@@ -123,14 +108,14 @@ public class TimeE {
         return new FormatTime((int) Math.floor(jd), jdSecOfDay);
     }
 
-    public FormatTime cal2gps(Cal cal) {
+    private FormatTime cal2gps(Cal cal) {
 
         FormatTime mjd = cal2mjd(cal);
 
         return mjd2gps(mjd);
     }
 
-    public static FormatTime mjd2gps(FormatTime mjd) {
+    private static FormatTime mjd2gps(FormatTime mjd) {
         int mjdDay = mjd.getIntegerPart();
 
         double mjdSecOfDay = mjd.getSec();
@@ -145,28 +130,20 @@ public class TimeE {
         return jd2gps(new FormatTime(jdDay, gpsSecOfDay));
     }
 
-    public static FormatTime jd2gps(FormatTime jd) {
-        // Calcul du temps GPS = 0 (6 janvier 1980) en date julienne
+    private static FormatTime jd2gps(FormatTime jd) {
+        // GPS time calculation = 0 (January 6, 1980) in Julian date
         Cal cal0 = new Cal(1980, 1, 6, 0, 0, 0.0);
         FormatTime jd0 = cal2jd(cal0);
         double djd = jd.integerPart - jd0.integerPart + (jd.doublePart - jd0.doublePart) / (24.0 * 3600.0);
-        // Calcul de la semaine GPS
         int week = (int) Math.floor(djd / 7);
-        // Calcul de la seconde de semaine GPS
         double sec = (djd - week * 7) * 24.0 * 3600.0;
         return new FormatTime(week, sec);
     }
 
 
-    public FormatTime cal2mjd(Cal cal) {
-
-        // Calcul de la date julienne
+    private FormatTime cal2mjd(Cal cal) {
         FormatTime jd = cal2jd(cal);
-
-        // Calcul du jour en date julienne modifiée
         int mjdDay = (int) Math.floor((jd.integerPart + jd.doublePart / (24.0 * 3600.0)) - 2400000.5);
-
-        // Calcul de la seconde de jour en date julienne modifiée
         double mjdSecOfDay = jd.doublePart - 12.0 * 3600.0;
         if (mjdSecOfDay < 0) {
             mjdSecOfDay += 24.0 * 3600.0;
@@ -174,7 +151,7 @@ public class TimeE {
 
         return new FormatTime(mjdDay, mjdSecOfDay);
     }
-    public Cal mjd2cal(FormatTime mjd) {
+    private Cal mjd2cal(FormatTime mjd) {
 
         int jdDay = (int) Math.floor(mjd.integerPart+ mjd.doublePart / (24 * 3600) + 2400000.5);
 
@@ -185,7 +162,7 @@ public class TimeE {
 
         return jd2cal(new FormatTime(jdDay,jdSecOfDay2));
     }
-    public Cal jd2cal(FormatTime jdTime) {
+    private Cal jd2cal(FormatTime jdTime) {
 
         int jdDay = jdTime.integerPart;
         double jdSecOfDay = jdTime.doublePart;
@@ -225,7 +202,7 @@ public class TimeE {
         return new Cal(year, month, day, hour, minute, second);
     }
 
-    public FormatTime gpsTimeMilliseconds2gps(double gpsTimeMilliseconds){
+    private FormatTime gpsTimeMilliseconds2gps(double gpsTimeMilliseconds){
         long week = (long) gpsTimeMilliseconds / MILLISECONDS_IN_WEEK ;
         int weekint = (int) week;
         double sec = (gpsTimeMilliseconds - week*MILLISECONDS_IN_WEEK)/1000;

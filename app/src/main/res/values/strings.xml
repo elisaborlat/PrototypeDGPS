@@ -13,4 +13,7 @@
     <string name="h_bessel">h Bessel:</string>
     <string name="pdop">PDOP:</string>
     <string name="connected">Connected</string>
+    <string name="log_raw_data">Log raw data</string>
+    <string name="log_dgps_results">Log DGPS results</string>
+    <string name="log_dgps_detailed_results">Log DGPS detailed results</string>
 </resources>

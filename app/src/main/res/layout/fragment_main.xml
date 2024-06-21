@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/scrollViewMain"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -71,7 +76,7 @@
                         android:layout_height="match_parent"
                         android:layout_weight="0.7"
                         android:orientation="vertical"
-                        android:paddingRight="10dp">
+                        android:paddingEnd="10dp">
 
                         <TextView
                             android:id="@+id/textView3"
@@ -179,7 +184,7 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:layout_weight="1">
 
@@ -309,7 +314,7 @@
                 android:layout_width="208dp"
                 android:layout_height="48dp"
                 android:layout_weight="0"
-                android:text="Log raw data" />
+                android:text="@string/log_raw_data" />
 
             <TextView
                 android:id="@+id/textViewRawCounter"
@@ -327,7 +332,7 @@
                 android:id="@+id/switchResults"
                 android:layout_width="208dp"
                 android:layout_height="48dp"
-                android:text="Log DGPS results" />
+                android:text="@string/log_dgps_results" />
 
             <TextView
                 android:id="@+id/textViewResCounter"
@@ -346,7 +351,7 @@
                 android:id="@+id/switchDetailedResults"
                 android:layout_width="208dp"
                 android:layout_height="48dp"
-                android:text="Log DGPS detailed results" />
+                android:text="@string/log_dgps_detailed_results" />
 
             <TextView
                 android:id="@+id/textViewResCounterDetailedResults"
@@ -409,8 +414,8 @@
             android:orientation="vertical">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:layout_height="57dp"
                 android:layout_weight="0"
                 android:orientation="horizontal">
 
@@ -449,21 +454,24 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ems="10"
-                    android:inputType="numberDecimal" />
+                    android:inputType="numberDecimal"
+                    android:textSize="14sp" />
 
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordy"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ems="10"
-                    android:inputType="numberDecimal" />
+                    android:inputType="numberDecimal"
+                    android:textSize="16sp" />
 
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordz"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ems="10"
-                    android:inputType="numberDecimal" />
+                    android:inputType="numberDecimal"
+                    android:textSize="14sp" />
             </LinearLayout>
 
         </LinearLayout>
@@ -471,3 +479,5 @@
     </LinearLayout>
 
 </LinearLayout>
+
+</ScrollView>

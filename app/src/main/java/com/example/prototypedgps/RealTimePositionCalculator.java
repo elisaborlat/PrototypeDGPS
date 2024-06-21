@@ -23,6 +23,7 @@ import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.SingularValueDecomposition;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -57,6 +58,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
     private final Object mFileLock = new Object();
 
+    private final Object mFileLock2 = new Object();
+
 
     private static final String TAG = "RinexLogger";
 
@@ -64,11 +67,17 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
     private BufferedWriter mFileWriter;
 
+    private BufferedWriter mFileWriter2;
+    
+
     private File mFile;
 
     private final Context mContext;
 
     public RealTimePositionCalculator(BaseStation baseStation, EphemerisManager ephemerisManager, Context context) {
+        // Init BaseStation
+        BaseStation mBaseStation = new BaseStation();
+        mBaseStation.registerRtcmMsg();
         this.mBaseStation = baseStation;
         this.mEphemerisManager = ephemerisManager;
         this.mContext = context;
@@ -97,9 +106,9 @@ public class RealTimePositionCalculator implements MeasurementListener {
     @Override
     public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
 
-        // Wait 1 second for the last RTCM messages to be decoded
+        // Wait 1 half second for the last RTCM messages to be decoded
         try {
-            Thread.sleep(1000); // 1000 millisecond = 1 second
+            Thread.sleep(500); // 1000 millisecond = 1 second
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -176,13 +185,9 @@ public class RealTimePositionCalculator implements MeasurementListener {
         if (mBaseStation.isStationaryAntennaDecoded()) {
             mUiFragmentComponent.stationaryAntennaDecoded();
         } else {
-            System.out.println("computePos| Position of base station not decoded");
+            System.out.println("computeDGPSSingleEpoch| Position of base station not decoded");
             return;
         }
-
-        System.out.println("\n--------------------------------------");
-        System.out.println("Code differential estimation");
-        System.out.println("--------------------------------------\n");
 
         // Epoch of position computation
         GnssClock gnssClock = event.getClock();
@@ -193,15 +198,23 @@ public class RealTimePositionCalculator implements MeasurementListener {
             return;
         }
 
+
         double gpsTimeNanos = gnssClock.getTimeNanos() - (gnssClock.getFullBiasNanos() + gnssClock.getBiasNanos());
         TimeE timeOfRover = new TimeE(gpsTimeNanos / 1e6);
-        System.out.println("computeDGPSSingleEpoch| gnssClock: " + timeOfRover.getGpsTimeMilliseconds());
+        System.out.printf(Locale.US,"computeDGPSSingleEpoch| gnssClock: %.1f\n", timeOfRover.getGpsTimeMilliseconds());
+        System.out.println("computeDGPSSingleEpoch| gnssClock:" + timeOfRover.getGpsTimeCalendar());
+        System.out.println("computeDGPSSingleEpoch| gnssClock:" + timeOfRover.getTow());
 
-        // Base station
+
+        // Base station observations
         ArrayList<Observations> observationsArrayList = mBaseStationReceiver.getEpochsArrayList();
-        int size = observationsArrayList.size();
 
-        if (size < 4) {
+        // Exit if not enough GNSS measurements or base station observations
+        if (event.getMeasurements().size() < 4) {
+            System.out.println("computeDGPSSingleEpoch| Number of gnssMeasurements observations < 4 , exit positioning calculation");
+            return;
+        }
+        if (observationsArrayList.size() < 4) {
             System.out.println("computeDGPSSingleEpoch| Number of decoded base station observations < 4 , exit positioning calculation");
             return;
         }
@@ -214,12 +227,12 @@ public class RealTimePositionCalculator implements MeasurementListener {
         Observations baseStationBeforNearObservations = null;
         Observations baseStationNearObservations = null;
 
-        for (int i = size - 1; i >= 0; i--) {
+        for (int i = observationsArrayList.size() - 1; i >= 0; i--) {
 
             Observations iObservation = observationsArrayList.get(i);
             Time iTime = iObservation.getRefTime();
             double iGpsTime = iTime.getMsecGpsTime();
-            System.out.println("debug| currentGpsTime: " + iTime.getMsecGpsTime());
+            System.out.println("computeDGPSSingleEpoch| currentGpsTime: " + iTime.getMsecGpsTime());
             double iDelta = Math.abs(gpsTimeNanos / 1e6 - iGpsTime);
 
             if (iDelta > deltaMin) {
@@ -228,8 +241,9 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 timeNear = baseStationNearObservations.getRefTime().getMsecGpsTime() / 1e3;
                 baseStationBeforNearObservations = observationsArrayList.get(i);
                 timeBefor = baseStationBeforNearObservations.getRefTime().getMsecGpsTime() / 1e3;
-                System.out.println("debug| closest: " + timeNear);
-                System.out.println("debug| before closest : " + timeBefor);
+                System.out.printf("computeDGPSSingleEpoch| closest: %.1f\n", timeNear);  // Print with 6 decimal places
+                System.out.printf("computeDGPSSingleEpoch| before closest: %.1f\n", timeBefor);
+                System.out.printf("computeDGPSSingleEpoch| timeRover (closest): %.1f\n", iGpsTime);
 
                 break; // Get out of the loop when iDelta > deltaMin
             } else {
@@ -252,7 +266,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
         int nbrSatObserved = event.getMeasurements().size();
         int nbrSatObservedGps = 0;
 
-        // Browse measurements
+        // Available svId rover
         for (GnssMeasurement mes : event.getMeasurements()) {
 
             if (mes.getConstellationType() == GnssStatus.CONSTELLATION_GPS) {
@@ -265,19 +279,17 @@ public class RealTimePositionCalculator implements MeasurementListener {
             }
         }
 
+        // Available svId base station
         for (ObservationSet obs : baseStationNearObservations.getObsSet()) {
             svIdBaseStation.add(obs.getSatID());
         }
 
-        // Common available svId
+        // Common available svId + check if ephemeris is available
         for (Integer value : svIdRover) {
-
             if (svIdBaseStation.contains(value)
                     && hasEphemeris(value)) {
                 commonSvId.add(value);
-
             }
-
         }
 
         if (commonSvId.size() < 4) {
@@ -316,6 +328,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
             double pseudorangeSvRover = 0;
             double pseudorangeSvRefRover = 0;
 
+            // Compute rover pseudorange
             for (GnssMeasurement mes : event.getMeasurements()) {
                 if (mes.getConstellationType() == GnssStatus.CONSTELLATION_GPS
                         && hasEphemeris(mes.getSvid())
@@ -332,6 +345,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             }
 
+            // Retrieve base station pseudorange
             for (ObservationSet obs : baseStationNearObservations.getObsSet()) {
                 if (obs.getSatID() == sv) {
                     pseudorangeSvBaseStation = obs.getPseudorange(0);
@@ -355,10 +369,11 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 System.out.println("computeDGPSSingleEpoch| form double diff : (" + refSv + "," + sv + ")");
 
                 // Sv
+                // Differential and asynchronous GNSS processing
                 double doppler = (pseudorangeSvBaseStation - pseudorangeSvBaseStationBefor) / (timeNear - timeBefor);
                 double pseudorangeSvBaseStationSync = pseudorangeSvBaseStation + doppler * deltaMin / 1000 * Constants.SPEED_OF_LIGHT / Constants.FL1;
+                System.out.printf("computeDGPSSingleEpoch| pseudorange sat %s [Base(Sync), Rover]: [%f,%f]\n", sv, pseudorangeSvBaseStationSync, pseudorangeSvRover);
                 double simpleDiffSv = pseudorangeSvBaseStationSync - pseudorangeSvRover;
-                System.out.printf("computeDGPSSingleEpoch| pseudorange sat %s [Base, Rover]: [%f,%f]\n", sv, pseudorangeSvBaseStationSync, pseudorangeSvRover);
 
                 // SvRef
                 double dopplerRef = (observationSetRefSv.getPseudorange(0) - observationSetRefSvBefor.getPseudorange(0)) / (timeNear - timeBefor);
@@ -632,7 +647,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
         double sigmaHeight = Math.sqrt(KxxTopo.getEntry(2,2));
 
         // Update res in UI
-        mUiFragmentComponent.incrementResultCounter();
         ArrayList<Double> MN95 = CHTRS95toMN95(X_Rover);
         mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0), MN95.get(1), MN95.get(2));
         mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservationGps, nbrObservations, PDOP, VDOP, HDOP, (s0/sigma0), sigmaEast, sigmaNorth, sigmaHeight);
@@ -832,7 +846,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
         double sigmaHeight = Math.sqrt(KxxTopo.getEntry(2,2));
 
         // Update res in UI
-        mUiFragmentComponent.incrementResultCounter();
         ArrayList<Double> MN95 = CHTRS95toMN95(X_Rover);
         mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0), MN95.get(1), MN95.get(2));
         mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservationGps, nbrObservations, PDOP, VDOP, HDOP, (s0/sigma0), sigmaEast, sigmaNorth, sigmaHeight);
@@ -1062,7 +1075,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
         double sigmaHeight = Math.sqrt(KxxTopo.getEntry(2,2));
 
         // Update res in UI
-        mUiFragmentComponent.incrementResultCounter();
         ArrayList<Double> MN95 = CHTRS95toMN95(X_Rover);
         mUiFragmentComponent.updateEastNorthHBessel(MN95.get(0), MN95.get(1), MN95.get(2));
         mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservationGps, nbrObservations, PDOP, VDOP, HDOP, (s0/sigma0), sigmaEast, sigmaNorth, sigmaHeight);
@@ -1215,6 +1227,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
             return stringBuilder.toString();
 
         }
+
     }
 
 
@@ -1236,8 +1249,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
         TimeE.FormatTime mjd_emit_1 = new TimeE.FormatTime(timeOfRover.getMjd().integerPart, mjd_sec_of_day_emit_1);
         TimeE.FormatTime mjd_emit_2 = new TimeE.FormatTime(timeOfRover.getMjd().integerPart, mjd_sec_of_day_emit_2);
 
-        TimeE timeOfEmit1 = TimeE.fromMjd(mjd_emit_1);
-        TimeE timeOfEmit2 = TimeE.fromMjd(mjd_emit_2);
+        TimeE timeOfEmit1 = new TimeE(mjd_emit_1);
+        TimeE timeOfEmit2 = new TimeE(mjd_emit_2);
 
         // Satellite position at t_emit
         RealMatrix X_prn1_emit = getSVPosition(prn1, gpsNavMessageProto, timeOfEmit1);
@@ -1284,6 +1297,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
             fullBiasNanos = gnssClock.getFullBiasNanos();
             BiasNanos = gnssClock.getBiasNanos();
             setClockBias = true;
+            System.out.println("computeDGPSSingleEpoch| full");
         }
 
         double tTx = mes.getReceivedSvTimeNanos();
@@ -1355,7 +1369,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
         }
         return false;
     }
-
 
     public RealMatrix getSVPosition(int prn, Ephemeris.GpsNavMessageProto mHardwareGpsNavMessageProto, TimeE timeE) {
 

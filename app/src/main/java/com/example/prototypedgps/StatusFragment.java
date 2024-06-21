@@ -27,13 +27,17 @@ public class StatusFragment extends Fragment {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private final RealTimePositionCalculator mRealTimePositionCalculator;
+    private RealTimePositionCalculator mRealTimePositionCalculator;
 
     private final StatusUIFragmentComponent mStatusUIFragmentComponent = new StatusUIFragmentComponent();
 
-    public StatusFragment(RealTimePositionCalculator mRealTimePositionCalculator) {
-        this.mRealTimePositionCalculator = mRealTimePositionCalculator;
+    public StatusFragment() {
     }
+
+    public void setRealTimePositionCalculator(RealTimePositionCalculator realTimePositionCalculator){
+        this.mRealTimePositionCalculator = realTimePositionCalculator;
+    }
+
 
 
     @Override
