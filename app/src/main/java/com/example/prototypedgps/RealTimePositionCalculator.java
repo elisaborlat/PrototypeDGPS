@@ -91,24 +91,17 @@ public class RealTimePositionCalculator implements MeasurementListener {
     @Override
     public void onLocationChanged(Location location) {
 
-        System.out.println("onLocationChanged");
-
         JSONObject json = new JSONObject();
         try {
             json.put("type","Location");
             json.put("latitude",location.getLatitude());
+            json.put("longitude",location.getLongitude());
+            json.put("height",location.getAltitude());
             json.put("time",location.getTime());
-
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
         sendResultsUDP(json);
-
-    }
-
-    @Override
-    public void onLocationStatusChanged(String provider, int status, Bundle extras) {
-
     }
 
     @Override
@@ -129,7 +122,14 @@ public class RealTimePositionCalculator implements MeasurementListener {
     @Override
     public void onGnssMeasurementsStatusChanged(int status) {
 
+
     }
+
+    @Override
+    public void onLocationStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
 
     @Override
     public void onGnssNavigationMessageReceived(GnssNavigationMessage navigationMessage) {
@@ -163,7 +163,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
                     gpsSat.put("azimuth", String.valueOf(azimuth));
                     allGpsSat.add(gpsSat);
                 }
-
 
             }
             mStatusUIFragmentComponent.updateStatusTable(allGpsSat);
@@ -679,13 +678,13 @@ public class RealTimePositionCalculator implements MeasurementListener {
         res.sigmaHeight = sigmaHeight;
 
 
-        JSONObject json = null;
+        JSONObject json;
         try {
             json = res.toJSON();
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
-        //sendResultsUDP(json);
+        sendResultsUDP(json);
 
         synchronized (mFileLock) {
             if (mFileWriter == null) {
@@ -702,19 +701,21 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 logException(ERROR_WRITING_FILE, e);
             }
         }
-
-
-
-
     }
 
     private void sendResultsUDP(JSONObject json){
-        String ipAddress = "192.168.206.161"; // Adresse IP de destination
-        int port = 5005;                // Port de destination
+
+        new Thread(() -> {
+            String ipAddress = "192.168.206.161"; // Adresse IP de destination
+            int port = 5005;                // Port de destination
 
             UDPSender sender = new UDPSender(ipAddress, port);
+
             sender.sendJSONObject(json);
             sender.close();
+        }).start();
+
+
         }
 
     private void computePos(ArrayList<DoubleDiff> doubleDiffArrayList, TimeE timeOfRover, int nbrSatObserved, int nbrObservationGps) {
@@ -1155,6 +1156,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 logException(ERROR_WRITING_FILE, e);
             }
         }
+
+
     }
 
 
@@ -1196,6 +1199,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
             // Method to convert the Results object to JSON
             public JSONObject toJSON() throws JSONException {
                 JSONObject json = new JSONObject();
+                json.put("type","Results");
                 json.put("epoch", epoch != null ? epoch.toString() : JSONObject.NULL);
                 json.put("nbrObservationsGps", nbrObservationsGps);
                 json.put("status", status);
@@ -1208,10 +1212,10 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 json.put("nbrIteration", nbrIteration);
                 json.put("sigma0", sigma0);
                 json.put("s0", s0);
-                json.put("GDOP", GDOP);
-                json.put("PDOP", PDOP);
-                json.put("VDOP", VDOP);
-                json.put("HDOP", HDOP);
+                json.put("GDOP", String.format(Locale.US, "%.1f", GDOP));
+                json.put("PDOP", String.format(Locale.US, "%.1f", GDOP));
+                json.put("VDOP", String.format(Locale.US, "%.1f", GDOP));
+                json.put("HDOP", String.format(Locale.US, "%.1f", GDOP));
 
                 if (Kll != null) {
                     json.put("Kll", matrixToJSONArray(Kll));
@@ -1240,7 +1244,8 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 if (doubleDiffArrayList != null) {
                     JSONArray doubleDiffArray = new JSONArray();
                     for (DoubleDiff doubleDiff : doubleDiffArrayList) {
-                        //doubleDiffArray.put(doubleDiff.toJSON());
+
+                        doubleDiffArray.put(doubleDiff.toJSON());
                     }
                     json.put("doubleDiffArrayList", doubleDiffArray);
                 } else {
@@ -1342,7 +1347,6 @@ public class RealTimePositionCalculator implements MeasurementListener {
         }
 
     }
-
 
     private double computeObsEquation(RealMatrix X_Rover_init, DoubleDiff doubleDiff, Ephemeris.GpsNavMessageProto gpsNavMessageProto, TimeE timeOfRover, RealMatrix X_Base) {
         int prn1 = doubleDiff.getPRN1();
@@ -1457,6 +1461,25 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
         public Float getElevationPRN2() {
             return elevationPRN2;
+        }
+
+        public JSONObject toJSON() {
+            JSONObject jsonObject = new JSONObject();
+            try {
+                jsonObject.put("iObs", iObs);
+                jsonObject.put("PRN1", PRN1);
+                jsonObject.put("PRN2", PRN2);
+                jsonObject.put("elevationPRN1", elevationPRN1);
+                jsonObject.put("elevationPRN2", elevationPRN2);
+                jsonObject.put("zeroDiffBase", zeroDiffBase);
+                jsonObject.put("zeroDiffRover", zeroDiffRover);
+                jsonObject.put("doubleDiff", doubleDiff);
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+
+
+            return jsonObject;
         }
     }
 

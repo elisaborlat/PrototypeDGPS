@@ -399,6 +399,7 @@ public class HomeFragment extends Fragment {
 
         public void updateDeltaGroundTrue(RealMatrix X_Rover) {
             handler.post(() -> {
+                if(allCoordinateFieldsFilled()){
             //CHTRS
             if(binding.toggleButton.isChecked()){
                 RealMatrix CHTRS = getCoordinateConstrainedPoint();
@@ -416,10 +417,8 @@ public class HomeFragment extends Fragment {
                 binding.textViewDeltaGroundTrueY.setText(String.format(Locale.US, "%.3f m", deltaGroundTrueNorth));
                 binding.textViewDeltaGroundTrueZ.setText(String.format(Locale.US, "%.3f m", deltaGroundTrueHeight));
             }
-            });
+            }});}
 
-
-        }
     }
 
 }
