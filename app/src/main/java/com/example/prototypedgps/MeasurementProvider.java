@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.location.GnssMeasurementsEvent;
 import android.location.GnssNavigationMessage;
 import android.location.GnssStatus;
+import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 
 import androidx.annotation.NonNull;
@@ -41,6 +43,7 @@ public class MeasurementProvider {
                 }
             };
 
+
     private final GnssNavigationMessage.Callback gnssNavigationMessage =
             new GnssNavigationMessage.Callback() {
                 @Override
@@ -62,7 +65,34 @@ public class MeasurementProvider {
                     }
                 }
             };
+    private final android.location.LocationListener listener = new LocationListener() {
+        @Override
+        public void onLocationChanged(@NonNull Location location) {
+            for (MeasurementListener logger : mListeners){
+                logger.onLocationChanged(location);
+            }
 
+        }
+    };
+
+    public void registerLocation() {
+        boolean isGpsProviderEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        if (isGpsProviderEnabled) {
+            try {
+                // here begin to have update --> onLocationChanged
+                mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, listener);
+            } catch (SecurityException e) {
+                // TODO(adaext)
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+            }
+
+        }
+    }
 
     public void registerMeasurements() {
         try {
@@ -71,6 +101,7 @@ public class MeasurementProvider {
         } catch (SecurityException ignored) {
         }
     }
+
 
     public void registerStatus() {
         if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {

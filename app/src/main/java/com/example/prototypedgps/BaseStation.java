@@ -71,7 +71,7 @@ public class BaseStation {
 
     public BaseStation(){
         this.mBaseStationReceiver = new Receiver();
-    };
+    }
 
     public void getSources() {
         new Thread(new Runnable() {
@@ -246,10 +246,6 @@ public class BaseStation {
                         if (messageType == 1006) {
                             Decode1006Msg mDecode1006Msg = new Decode1006Msg();
                             mStationaryAntenna = mDecode1006Msg.decode(dataBits);
-                            System.out.println("registerRtcmMsg| ITRF Realisation Year : " + mStationaryAntenna.getItrl());
-                            System.out.println("registerRtcmMsg| ECEF-X : " + mStationaryAntenna.getAntennaRefPointX());
-                            System.out.println("registerRtcmMsg| ECEF-Y : " + mStationaryAntenna.getAntennaRefPointY());
-                            System.out.println("registerRtcmMsg| ECEF-Z : " + mStationaryAntenna.getAntennaRefPointZ());
                         }
 
                         if (messageType == 1004) {

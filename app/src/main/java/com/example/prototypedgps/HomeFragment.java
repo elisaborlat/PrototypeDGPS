@@ -39,6 +39,9 @@ public class HomeFragment extends Fragment {
     private RealTimePositionCalculator mRealTimePositionCalculator;
     private final HomeUIFragmentComponent mUiComponent = new HomeUIFragmentComponent();
 
+    public HomeFragment() {
+    }
+
 
     @Override
     public View onCreateView (@NonNull LayoutInflater inflater,
@@ -138,22 +141,44 @@ public class HomeFragment extends Fragment {
         });
 
         binding.buttonpil6170.setOnClickListener(v -> {
-            String coordinateX = "4346326.472";
-            String coordinateY = "507584.445";
-            String coordinateZ = "4625432.791";
-        binding.editTextNumberDecimalCoordx.setText(coordinateX);
-        binding.editTextNumberDecimalCoordy.setText(coordinateY);
-        binding.editTextNumberDecimalCoordz.setText(coordinateZ);
+            // isChecked = chtrs
+            if (binding.toggleButton.isChecked()){
+                String coordinateX = "4346325.847";
+                String coordinateY = "507584.373";
+                String coordinateZ = "4625432.121";
+                binding.editTextNumberDecimalCoordx.setText(coordinateX);
+                binding.editTextNumberDecimalCoordy.setText(coordinateY);
+                binding.editTextNumberDecimalCoordz.setText(coordinateZ);
+            }
+            else{
+                String coordinateX = "2540621.753";
+                String coordinateY = "1181302.435";
+                String coordinateZ = "447.764";
+                binding.editTextNumberDecimalCoordx.setText(coordinateX);
+                binding.editTextNumberDecimalCoordy.setText(coordinateY);
+                binding.editTextNumberDecimalCoordz.setText(coordinateZ);
+            }
+
         });
 
         binding.buttond01.setOnClickListener(v -> {
-            String coordinateX = "4346400.677";
-            String coordinateY = "507454.190";
-            String coordinateZ = "4625380.301";
-            binding.editTextNumberDecimalCoordx.setText(coordinateX);
-            binding.editTextNumberDecimalCoordy.setText(coordinateY);
-            binding.editTextNumberDecimalCoordz.setText(coordinateZ);
-
+            // isChecked = chtrs
+            if (binding.toggleButton.isChecked()){
+                String coordinateX = "4346400.677";
+                String coordinateY = "507454.190";
+                String coordinateZ = "4625380.301";
+                binding.editTextNumberDecimalCoordx.setText(coordinateX);
+                binding.editTextNumberDecimalCoordy.setText(coordinateY);
+                binding.editTextNumberDecimalCoordz.setText(coordinateZ);
+            }
+            else{
+                String coordinateX = "2540483.004";
+                String coordinateY = "1181225.169";
+                String coordinateZ = "449.636";
+                binding.editTextNumberDecimalCoordx.setText(coordinateX);
+                binding.editTextNumberDecimalCoordy.setText(coordinateY);
+                binding.editTextNumberDecimalCoordz.setText(coordinateZ);
+            }
         });
 
         TextWatcher textWatcher = new TextWatcher() {
@@ -164,9 +189,7 @@ public class HomeFragment extends Fragment {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                boolean allFieldsFilled =  !binding.editTextNumberDecimalCoordx.getText().toString().trim().isEmpty() &&
-                        !binding.editTextNumberDecimalCoordy.getText().toString().trim().isEmpty() &&
-                        !binding.editTextNumberDecimalCoordz.getText().toString().trim().isEmpty();
+                boolean allFieldsFilled =  allCoordinateFieldsFilled();
                 binding.switchRinex2.setEnabled(allFieldsFilled);
             }
 
@@ -180,7 +203,53 @@ public class HomeFragment extends Fragment {
         binding.editTextNumberDecimalCoordy.addTextChangedListener(textWatcher);
         binding.editTextNumberDecimalCoordz.addTextChangedListener(textWatcher);
 
+        // Add a listener to handle toggle changes
+        binding.toggleButton.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if(allCoordinateFieldsFilled()){
+            double xValue = Double.parseDouble(binding.editTextNumberDecimalCoordx.getText().toString());
+            double yValue = Double.parseDouble(binding.editTextNumberDecimalCoordy.getText().toString());
+            double zValue = Double.parseDouble(binding.editTextNumberDecimalCoordz.getText().toString());
+
+                // MN95 -> CHTRS
+                if (isChecked) {
+                    binding.textView15.setText("x");
+                    binding.textView20.setText("y");
+                    binding.textView21.setText("z");
+                    double[] X = RealTimePositionCalculator.MN95toCHTRS(xValue,yValue,zValue);
+                    String x = String.format(Locale.US,"%.3f",X[0]);
+                    String y = String.format(Locale.US,"%.3f",X[1]);
+                    String z = String.format(Locale.US,"%.3f",X[2]);
+                    binding.editTextNumberDecimalCoordx.setText(x);
+                    binding.editTextNumberDecimalCoordy.setText(y);
+                    binding.editTextNumberDecimalCoordz.setText(z);
+                } else {
+
+                        binding.textView15.setText("E");
+                        binding.textView20.setText("N");
+                        binding.textView21.setText("h");
+                        RealMatrix X = new Array2DRowRealMatrix(new double[][]{
+                                {xValue},
+                                {yValue},
+                                {zValue}
+                        });
+                        double[] MN95 = RealTimePositionCalculator.CHTRS95toMN95(X);
+                        String E = String.format(Locale.US,"%.3f",MN95[0]);
+                        String N = String.format(Locale.US,"%.3f",MN95[1]);
+                        String h = String.format(Locale.US,"%.3f",MN95[2]);
+                        binding.editTextNumberDecimalCoordx.setText(E);
+                        binding.editTextNumberDecimalCoordy.setText(N);
+                        binding.editTextNumberDecimalCoordz.setText(h);
+            }
+
+        }});
+
         return binding.getRoot();
+    }
+
+    private boolean allCoordinateFieldsFilled(){
+        return !binding.editTextNumberDecimalCoordx.getText().toString().trim().isEmpty() &&
+                !binding.editTextNumberDecimalCoordy.getText().toString().trim().isEmpty() &&
+                !binding.editTextNumberDecimalCoordz.getText().toString().trim().isEmpty();
     }
 
     private boolean anySwitchOn(){
@@ -227,9 +296,6 @@ public class HomeFragment extends Fragment {
         public void resetRinexCounter() {
             rinexCounter.set(0);
         }
-        public void resetResultsCounter() {
-            resultsCounter.set(0);
-        }
 
         public void resetRawCounter() {
             rawCounter.set(0);
@@ -243,9 +309,6 @@ public class HomeFragment extends Fragment {
             updateCounter(rinexCounter, binding.textView);
         }
 
-        public void incrementResultCounter(){
-            updateCounter(resultsCounter, binding.textViewResCounter);
-        }
 
         public void incrementRawCounter(){
             updateCounter(rawCounter, binding.textViewRawCounter);
@@ -306,18 +369,56 @@ public class HomeFragment extends Fragment {
         }
 
         public boolean isComputeConstraint(){
-            return binding.switchRinex2.isChecked();
+            Activity activity = getActivity();
+            if (activity != null) {
+            return binding.switchRinex2.isChecked();}
+            return false;
         }
 
         public RealMatrix getCoordinateConstrainedPoint(){
             double coordinateX = Double.parseDouble(binding.editTextNumberDecimalCoordx.getText().toString());
             double coordinateY = Double.parseDouble(binding.editTextNumberDecimalCoordy.getText().toString());
             double coordinateZ = Double.parseDouble(binding.editTextNumberDecimalCoordz.getText().toString());
-            return new Array2DRowRealMatrix(new double[][]{
-                    {coordinateX},
-                    {coordinateY},
-                    {coordinateZ}
+            //CHTRS
+            if(binding.toggleButton.isChecked()){
+                return new Array2DRowRealMatrix(new double[][]{
+                        {coordinateX},
+                        {coordinateY},
+                        {coordinateZ}
             });
+            } else {
+                //Transform current MN95 coordinate to CHTRS
+                double[] X_CHTRS = RealTimePositionCalculator.MN95toCHTRS(coordinateX,coordinateY,coordinateZ);
+                return new Array2DRowRealMatrix(new double[][]{
+                        {X_CHTRS[0]},
+                        {X_CHTRS[1]},
+                        {X_CHTRS[2]}
+                });
+            }
+        }
+
+        public void updateDeltaGroundTrue(RealMatrix X_Rover) {
+            handler.post(() -> {
+            //CHTRS
+            if(binding.toggleButton.isChecked()){
+                RealMatrix CHTRS = getCoordinateConstrainedPoint();
+                RealMatrix deltaGroundTrue = CHTRS.subtract(X_Rover);
+                binding.textViewDeltaGroundTrueX.setText(String.format(Locale.US, "%.3f m", deltaGroundTrue.getEntry(0,0)));
+                binding.textViewDeltaGroundTrueY.setText(String.format(Locale.US, "%.3f m", deltaGroundTrue.getEntry(1,0)));
+                binding.textViewDeltaGroundTrueZ.setText(String.format(Locale.US, "%.3f m", deltaGroundTrue.getEntry(2,0)));
+            } else {
+                double[] MN95GroundTrue = RealTimePositionCalculator.CHTRS95toMN95(getCoordinateConstrainedPoint());
+                double[] MN95Compute = RealTimePositionCalculator.CHTRS95toMN95(X_Rover);
+                double deltaGroundTrueEast = MN95GroundTrue[0] - MN95Compute[0];
+                double deltaGroundTrueNorth = MN95GroundTrue[1] - MN95Compute[1];
+                double deltaGroundTrueHeight = MN95GroundTrue[2] - MN95Compute[2];
+                binding.textViewDeltaGroundTrueX.setText(String.format(Locale.US, "%.3f m", deltaGroundTrueEast));
+                binding.textViewDeltaGroundTrueY.setText(String.format(Locale.US, "%.3f m", deltaGroundTrueNorth));
+                binding.textViewDeltaGroundTrueZ.setText(String.format(Locale.US, "%.3f m", deltaGroundTrueHeight));
+            }
+            });
+
+
         }
     }
 

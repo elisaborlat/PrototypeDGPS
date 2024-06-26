@@ -46,6 +46,7 @@ dependencies {
     implementation(project(mapOf("path" to ":pseudorange")))
     implementation(files("../pseudorange/libs/protobuf-nano.jar"))
     implementation(files("../pseudorange/libs/suplClient.jar"))
+    implementation(files("libs/reframeLib.jar"))
 
     implementation ("org.apache.commons:commons-math3:3.6.1")
 }

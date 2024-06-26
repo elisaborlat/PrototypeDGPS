@@ -31,7 +31,8 @@ public class StatusFragment extends Fragment {
 
     private final StatusUIFragmentComponent mStatusUIFragmentComponent = new StatusUIFragmentComponent();
 
-    public StatusFragment() {
+    public StatusFragment(RealTimePositionCalculator realTimePositionCalculator) {
+        this.mRealTimePositionCalculator = realTimePositionCalculator;
     }
 
     public void setRealTimePositionCalculator(RealTimePositionCalculator realTimePositionCalculator){
@@ -83,19 +84,19 @@ public class StatusFragment extends Fragment {
         if (rowIndex < tableLayout.getChildCount()) {
             // Update existing row
             tableRow = (TableRow) tableLayout.getChildAt(rowIndex);
-            updateCell((TextView) tableRow.getChildAt(0), (String) satellite.get("svId"));
-            updateCell((TextView) tableRow.getChildAt(1), (String)  satellite.get("cn0DbHz"));
+            updateCell((TextView) tableRow.getChildAt(0), satellite.get("svId"));
+            updateCell((TextView) tableRow.getChildAt(1), satellite.get("cn0DbHz"));
             updateCell((TextView) tableRow.getChildAt(2), "U");
-            updateCell((TextView) tableRow.getChildAt(3), (String) satellite.get("elevation"));
-            updateCell((TextView) tableRow.getChildAt(4), (String) satellite.get("azimuth"));
+            updateCell((TextView) tableRow.getChildAt(3), satellite.get("elevation"));
+            updateCell((TextView) tableRow.getChildAt(4), satellite.get("azimuth"));
         } else {
             // Add new row
             tableRow = new TableRow(getContext());
-            tableRow.addView(createTextView((String) satellite.get("svId")));
-            tableRow.addView(createTextView((String)  satellite.get("cn0DbHz")));
+            tableRow.addView(createTextView(satellite.get("svId")));
+            tableRow.addView(createTextView(satellite.get("cn0DbHz")));
             tableRow.addView(createTextView("U"));
-            tableRow.addView(createTextView((String) satellite.get("elevation")));
-            tableRow.addView(createTextView((String) satellite.get("azimuth")));
+            tableRow.addView(createTextView(satellite.get("elevation")));
+            tableRow.addView(createTextView(satellite.get("azimuth")));
             tableLayout.addView(tableRow);
         }
     }

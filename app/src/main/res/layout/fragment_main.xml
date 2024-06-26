@@ -8,11 +8,10 @@
     android:layout_height="match_parent"
     android:fillViewport="true">
 
-<LinearLayout
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
-
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
 
         <LinearLayout
@@ -58,6 +57,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:baselineAligned="false"
             android:orientation="horizontal">
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -72,9 +72,8 @@
                     android:orientation="horizontal">
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:layout_weight="0.7"
                         android:orientation="vertical"
                         android:paddingEnd="10dp">
 
@@ -104,7 +103,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="end"
-                            android:text="# Sats:"
+                            android:text="@string/sats"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toTopOf="parent" />
 
@@ -128,9 +127,8 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:layout_weight="1"
                         android:gravity="right"
                         android:orientation="vertical"
                         android:paddingRight="10dp">
@@ -186,7 +184,7 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                android:layout_weight="1">
+                android:layout_weight="0.5">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -219,7 +217,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="end"
-                            android:text="sigma H :" />
+                            android:text="sigma H:" />
 
                         <TextView
                             android:id="@+id/textView12"
@@ -403,51 +401,39 @@
 
         </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_weight="0"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ToggleButton
+                android:id="@+id/toggleButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:checked="true"
+                android:textOff="MN95/hBessel"
+                android:textOn="@string/chtrs" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:orientation="vertical">
 
             <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="57dp"
-                android:layout_weight="0"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:orientation="horizontal">
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switchRinex2"
-                    android:layout_width="164dp"
-                    android:layout_height="48dp"
-                    android:layout_marginBottom="32dp"
-                    android:layout_weight="0"
-                    android:enabled="false"
-                    android:text="Constrained calculation on known position" />
-
                 <TextView
-                    android:id="@+id/buttonpil6170"
+                    android:id="@+id/textView15"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_margin="10dp"
-                    android:text="PIL6170" />
-
-                <TextView
-                    android:id="@+id/buttond01"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="10dp"
-                    android:text="D01" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_weight="0"
-                android:orientation="vertical">
+                    android:layout_weight="1"
+                    android:text="x" />
 
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordx"
@@ -457,13 +443,55 @@
                     android:inputType="numberDecimal"
                     android:textSize="14sp" />
 
+                <TextView
+                    android:id="@+id/textViewDeltaGroundTrueX"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="deltaGroundTrueX" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/textView20"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="y" />
+
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordy"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ems="10"
                     android:inputType="numberDecimal"
-                    android:textSize="16sp" />
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/textViewDeltaGroundTrueY"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="deltaGroundTrueY" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/textView21"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="z" />
 
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordz"
@@ -472,12 +500,46 @@
                     android:ems="10"
                     android:inputType="numberDecimal"
                     android:textSize="14sp" />
-            </LinearLayout>
 
+                <TextView
+                    android:id="@+id/textViewDeltaGroundTrueZ"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="deltaGroundTrueZ" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:orientation="horizontal">
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchRinex2"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="0dp"
+                android:layout_weight="0"
+                android:enabled="false"
+                android:text="Constrained calculation" />
+
+            <TextView
+                android:id="@+id/buttonpil6170"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="PIL6170" />
+
+            <TextView
+                android:id="@+id/buttond01"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="D01" />
         </LinearLayout>
 
     </LinearLayout>
-
-</LinearLayout>
 
 </ScrollView>

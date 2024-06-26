@@ -21,6 +21,9 @@ import com.example.pseudorange.EphemerisManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -78,6 +81,7 @@ public class MainActivity extends AppCompatActivity{
 
         mMeasurementProvider.registerMeasurements();
         mMeasurementProvider.registerStatus();
+        mMeasurementProvider.registerLocation();
 
         HomeFragment homeFragment = new HomeFragment();
         homeFragment.setRealTimePositionCalculator(mRealTimePositionCalculator);
@@ -93,9 +97,6 @@ public class MainActivity extends AppCompatActivity{
                 .replace(R.id.fragment_container, homeFragment, null)
                 .setReorderingAllowed(true)
                 .commit();
-
-
-
 
         // Navigation View
         BottomNavigationView navigationView = findViewById(R.id.bottom_nav);
@@ -133,6 +134,27 @@ public class MainActivity extends AppCompatActivity{
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+
+
+        new Thread(() -> {
+
+            String ipAddress = "192.168.206.161"; // Adresse IP de destination
+            int port = 5005;                // Port de destination
+            JSONObject json = new JSONObject();
+            try {
+                json.put("type", "message");
+                json.put("content", "Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+                json.put("timestamp", System.currentTimeMillis());
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+
+            UDPSender sender = new UDPSender(ipAddress, port);
+            sender.sendJSONObject(json);
+            sender.close();
+        }).start();
+
 
     }
 
