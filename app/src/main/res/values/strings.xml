@@ -15,7 +15,7 @@
     <string name="connected">Connected</string>
     <string name="log_raw_data">Log raw data</string>
     <string name="log_dgps_results">Log DGPS results</string>
-    <string name="log_dgps_detailed_results">Log DGPS detailed results</string>
+    <string name="log_dgps_detailed_results">Log DGPS results</string>
     <string name="chtrs">CHTRS</string>
     <string name="sats"># Sats:</string>
 </resources>

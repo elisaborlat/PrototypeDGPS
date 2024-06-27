@@ -170,19 +170,6 @@ public class RinexLogger implements MeasurementListener {
         }
     }
 
-    public void writeRinexHeader(String rinexHeader){
-        synchronized (mFileLock) {
-            if (mFileWriter == null) {
-                return;
-            }
-            try {
-                mFileWriter.write(rinexHeader);
-            } catch (IOException e) {
-                logException(ERROR_WRITING_FILE, e);
-            }
-        }
-    }
-
     @Override
     public void onGnssMeasurementsStatusChanged(int status) {
 
@@ -216,6 +203,19 @@ public class RinexLogger implements MeasurementListener {
     @Override
     public void onTTFFReceived(long l) {
 
+    }
+
+    public void writeRinexHeader(String rinexHeader){
+        synchronized (mFileLock) {
+            if (mFileWriter == null) {
+                return;
+            }
+            try {
+                mFileWriter.write(rinexHeader);
+            } catch (IOException e) {
+                logException(ERROR_WRITING_FILE, e);
+            }
+        }
     }
 
     private void logException(String errorMessage, Exception e) {

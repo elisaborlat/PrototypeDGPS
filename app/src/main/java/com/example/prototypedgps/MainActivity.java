@@ -135,27 +135,6 @@ public class MainActivity extends AppCompatActivity{
             throw new RuntimeException(e);
         }
 
-
-
-        new Thread(() -> {
-
-            String ipAddress = "192.168.206.161"; // Adresse IP de destination
-            int port = 5005;                // Port de destination
-            JSONObject json = new JSONObject();
-            try {
-                json.put("type", "message");
-                json.put("content", "Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
-                json.put("timestamp", System.currentTimeMillis());
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
-            }
-
-            UDPSender sender = new UDPSender(ipAddress, port);
-            sender.sendJSONObject(json);
-            sender.close();
-        }).start();
-
-
     }
 
     @Override

@@ -38,6 +38,7 @@ public class UDPSender {
         try {
             InetAddress address = InetAddress.getByName(ipAddress);
             byte[] buffer = json.toString().getBytes();
+            System.out.println("Elisa:"+buffer.length);
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
             socket.send(packet);
             System.out.println("Message JSON envoyé avec succès: " + json);

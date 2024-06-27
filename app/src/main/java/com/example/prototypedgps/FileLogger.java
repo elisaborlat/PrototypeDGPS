@@ -28,6 +28,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
+import android.widget.Toast;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileFilter;
@@ -44,7 +46,6 @@ public class FileLogger implements MeasurementListener {
 
     private static final String TAG = "FileLogger";
     private static final String FOLDER_PREFIX = "gnss_log";
-
     private static final String FILE_PREFIX = "raw";
     private static final String ERROR_WRITING_FILE = "Problem writing to file.";
     private static final String COMMENT_START = "# ";
@@ -79,7 +80,6 @@ public class FileLogger implements MeasurementListener {
             String state = Environment.getExternalStorageState();
             if (Environment.MEDIA_MOUNTED.equals(state)) {
                 baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
-                baseDirectory.mkdirs();
             } else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
                 logError("Cannot write to external storage.");
                 return;
@@ -88,7 +88,7 @@ public class FileLogger implements MeasurementListener {
                 return;
             }
 
-            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
+            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss",Locale.US);
             Date now = new Date();
             String fileName = String.format("%s_%s.txt", FILE_PREFIX, formatter.format(now));
             File currentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
@@ -169,7 +169,6 @@ public class FileLogger implements MeasurementListener {
 
             mFile = currentFile;
             mFileWriter = currentFileWriter;
-            //Toast.makeText(mContext, "File opened: " + currentFilePath, Toast.LENGTH_SHORT).show();
 
             // To make sure that files do not fill up the external storage:
             // - Remove all empty files
@@ -202,9 +201,6 @@ public class FileLogger implements MeasurementListener {
             try {
                 mFileWriter.flush();
                 mFileWriter.close();
-                System.out.println("debug FileLogger|FileWriter has been closed");
-                System.out.println("debug FileLogger| Contain :" +mFileWriter);
-                System.out.println("debug FileLogger|mFile :"+mFile.getPath());
                 mFileWriter = null;
             } catch (IOException e) {
                 logException("Unable to close all file streams.", e);
@@ -252,7 +248,6 @@ public class FileLogger implements MeasurementListener {
 
     @Override
     public void onGnssMeasurementsReceived(GnssMeasurementsEvent event) {
-        System.out.println("FileLogger| onGnssMeasurementsReceived");
         synchronized (mFileLock) {
             if (mFileWriter == null) {
                 return;
@@ -385,8 +380,7 @@ public class FileLogger implements MeasurementListener {
                         measurement.getMultipathIndicator(),
                         measurement.hasSnrInDb() ? measurement.getSnrInDb() : "",
                         measurement.getConstellationType(),
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                                && measurement.hasAutomaticGainControlLevelDb()
+                        measurement.hasAutomaticGainControlLevelDb()
                                 ? measurement.getAutomaticGainControlLevelDb()
                                 : "");
         mFileWriter.write(measurementStream);
@@ -396,12 +390,12 @@ public class FileLogger implements MeasurementListener {
 
     private void logException(String errorMessage, Exception e) {
         Log.e(MeasurementProvider.TAG + TAG, errorMessage, e);
-        //Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
+        Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
     }
 
     private void logError(String errorMessage) {
         Log.e(MeasurementProvider.TAG + TAG, errorMessage);
-        //Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
+        Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
     }
 
     /**

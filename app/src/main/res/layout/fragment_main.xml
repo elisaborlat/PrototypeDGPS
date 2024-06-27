@@ -62,7 +62,7 @@
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="0dp"
-                android:layout_height="157dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1">
 
 
@@ -302,6 +302,14 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switchUDP"
+            android:layout_width="208dp"
+            android:layout_height="48dp"
+            android:layout_weight="0"
+            android:checked="true"
+            android:text="Send UDP" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -319,24 +327,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="0" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchResults"
-                android:layout_width="208dp"
-                android:layout_height="48dp"
-                android:text="@string/log_dgps_results" />
-
-            <TextView
-                android:id="@+id/textViewResCounter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1" />
 
         </LinearLayout>
 
@@ -447,8 +437,7 @@
                     android:id="@+id/textViewDeltaGroundTrueX"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="deltaGroundTrueX" />
+                    android:layout_weight="1" />
             </LinearLayout>
 
             <LinearLayout
@@ -475,8 +464,7 @@
                     android:id="@+id/textViewDeltaGroundTrueY"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="deltaGroundTrueY" />
+                    android:layout_weight="1" />
 
             </LinearLayout>
 
@@ -505,8 +493,7 @@
                     android:id="@+id/textViewDeltaGroundTrueZ"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="deltaGroundTrueZ" />
+                    android:layout_weight="1" />
             </LinearLayout>
         </LinearLayout>
 
