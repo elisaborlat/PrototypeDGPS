@@ -20,11 +20,7 @@ package com.example.prototypedgps;
  *
  */
 
-import java.text.SimpleDateFormat;
-
 public class Decode1004Msg {
-
-    private SimpleDateFormat sdf = new SimpleDateFormat("yyyy MM dd HH mm ss.SSS");
 
     public Observations decode(boolean[] bits, int week) {
 

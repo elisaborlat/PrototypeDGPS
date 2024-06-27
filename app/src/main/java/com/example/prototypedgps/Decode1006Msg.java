@@ -1,44 +1,63 @@
 package com.example.prototypedgps;
 
+/*
+ * Copyright (c) 2010 Eugenio Realini, Mirko Reguzzoni, Cryms sagl - Switzerland. All Rights Reserved.
+ *
+ * This file is part of goGPS Project (goGPS).
+ *
+ * goGPS is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 3
+ * of the License, or (at your option) any later version.
+ *
+ * goGPS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with goGPS.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 public class Decode1006Msg {
 
     public StationaryAntenna decode(boolean[] bits){
 
         int start = 12;
 
-        StationaryAntenna stationaryantenne = new StationaryAntenna();
+        StationaryAntenna stationaryAntenna = new StationaryAntenna();
 
-        stationaryantenne.setStationID((int)Bits.bitsToUInt(Bits.subset(bits, start, 12)));
+        stationaryAntenna.setStationID((int)Bits.bitsToUInt(Bits.subset(bits, start, 12)));
         start += 12;
-        stationaryantenne.setItrl((int)Bits.bitsToUInt(Bits.subset(bits, start, 6)));
+        stationaryAntenna.setItrl((int)Bits.bitsToUInt(Bits.subset(bits, start, 6)));
         start += 6;
-        stationaryantenne.setGpsIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
+        stationaryAntenna.setGpsIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
         start += 1;
-        stationaryantenne.setGlonassIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
+        stationaryAntenna.setGlonassIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
         start += 1;
-        stationaryantenne.setRgalileoIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
+        stationaryAntenna.setRgalileoIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
         start += 1;
-        stationaryantenne.setRstationIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
+        stationaryAntenna.setRstationIndicator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
         start += 1;
-        //System.out.println("x"+Bits.bitsToStr(Bits.subset(bits, start, 38)));
-        stationaryantenne.setAntennaRefPointX(Bits.bitsTwoComplement(Bits.subset(bits, start, 38)) * 0.0001);
+        // x coordinate
+        stationaryAntenna.setAntennaRefPointX(Bits.bitsTwoComplement(Bits.subset(bits, start, 38)) * 0.0001);
         start += 38;
-        stationaryantenne.setSreceiverOscillator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
+        stationaryAntenna.setSreceiverOscillator((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
         start += 1;
-        stationaryantenne.setReserved1((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
+        stationaryAntenna.setReserved1((int)Bits.bitsToUInt(Bits.subset(bits, start, 1)));
         start += 1;
-        //System.out.println("y"+Bits.bitsToStr(Bits.subset(bits, start, 38)));
-        stationaryantenne.setAntennaRefPointY(Bits.bitsTwoComplement(Bits.subset(bits, start, 38)) * 0.0001);
+        // y coordinate
+        stationaryAntenna.setAntennaRefPointY(Bits.bitsTwoComplement(Bits.subset(bits, start, 38)) * 0.0001);
         start += 38;
-        stationaryantenne.setReserved2((int)Bits.bitsToUInt(Bits.subset(bits, start, 2)));
+        stationaryAntenna.setReserved2((int)Bits.bitsToUInt(Bits.subset(bits, start, 2)));
         start += 2;
-        //System.out.println("z"+Bits.bitsToStr(Bits.subset(bits, start, 38)));
-        stationaryantenne.setAntennaRefPointZ(Bits.bitsTwoComplement(Bits.subset(bits, start, 38)) * 0.0001);
+        // 5 coordinate
+        stationaryAntenna.setAntennaRefPointZ(Bits.bitsTwoComplement(Bits.subset(bits, start, 38)) * 0.0001);
         start += 38;
-        stationaryantenne.setAntennaHeight(Bits.bitsToUInt(Bits.subset(bits, start, 16)) * 0.0001);
-        start += 16;
+        stationaryAntenna.setAntennaHeight(Bits.bitsToUInt(Bits.subset(bits, start, 16)) * 0.0001);
 
-        return stationaryantenne;
+        return stationaryAntenna;
     }
 
 }
