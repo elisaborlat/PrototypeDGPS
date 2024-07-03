@@ -192,7 +192,6 @@ public class GpsNavigationMessageStore {
       for (int i = 0; i < MAX_NUMBER_OF_SATELLITES; i++) {
         // If eph of prn is fully decoded, it is add to currentEphemerisProto
         if (fullyDecodedIntermediateEphemerides[i] != null) {
-          System.out.println("GpsNavMsgStore| Ephemeris " +  (i+1) + " is fully decoded and add to currentEphemerisProto");
           gpsEphemerisProtoList.add(fullyDecodedIntermediateEphemerides[i].getEphemerisObj());
         }
         else {
@@ -200,7 +199,6 @@ public class GpsNavigationMessageStore {
           if (lastFullyDecodedEphemerides!=null){
           for (Ephemeris.GpsEphemerisProto eph : lastFullyDecodedEphemerides.ephemerids) {
             if (eph.prn == i + 1) {
-              System.out.println("GpsNavMsgStore| Ephemeris " + (i + 1) + " has been taken from last ephemeris file");
               gpsEphemerisProtoList.add(eph);
               break; // Exit the loop once the PRN has been found
             }

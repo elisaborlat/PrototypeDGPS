@@ -392,6 +392,8 @@ public class HomeFragment extends Fragment {
 
         public void updateDeltaGroundTrue(RealMatrix X_Rover) {
             handler.post(() -> {
+                Activity activity = getActivity();
+                if (activity != null) {
                 if (allCoordinateFieldsFilled()) {
                     //CHTRS
                     if (binding.toggleButton.isChecked()) {
@@ -410,13 +412,17 @@ public class HomeFragment extends Fragment {
                         binding.textViewDeltaGroundTrueY.setText(String.format(Locale.US, "%.3f m", deltaGroundTrueNorth));
                         binding.textViewDeltaGroundTrueZ.setText(String.format(Locale.US, "%.3f m", deltaGroundTrueHeight));
                     }
-                }
+                }}
             });
         }
 
         public boolean isSendUDPChecked() {
+            Activity activity = getActivity();
+            if (activity != null) {
+                return binding.switchUDP.isChecked();
+            }
+            return false;
 
-            return binding.switchUDP.isChecked();
         }
     }
 

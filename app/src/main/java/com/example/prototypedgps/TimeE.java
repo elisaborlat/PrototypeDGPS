@@ -1,5 +1,7 @@
 package com.example.prototypedgps;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 public class TimeE {
@@ -56,6 +58,8 @@ public class TimeE {
     }
 
 
+
+
     public Cal getGpsTimeCalendar() {
         return gpsTimeCalendar;
     }
@@ -63,6 +67,7 @@ public class TimeE {
     public int getGpsWeek() {
         return gps.integerPart;
     }
+
 
     public double getTow() {
         return gps.doublePart;
@@ -295,6 +300,14 @@ public class TimeE {
         public String toString(){
 
             return String.format(Locale.US,"%02d-%02d-%d %02d:%02d:%-6.3f", day, month, year, hour, minutes, sec);
+        }
+
+        public String toFormattedDateTime(){
+             int second = (int) sec;
+             int millis = (int) ((sec - second) * 1000);
+                LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minutes, second,millis * 1_000_000);
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");
+            return dateTime.format(formatter);
         }
 
     }
