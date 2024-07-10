@@ -14,16 +14,12 @@ import android.widget.Toast;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 
 public class RinexLogger implements MeasurementListener {
@@ -31,7 +27,6 @@ public class RinexLogger implements MeasurementListener {
     private static final String TAG = "RinexLogger";
     private static final String FILE_PREFIX = "rinex";
     private static final String ERROR_WRITING_FILE = "Problem writing to file.";
-    private static final int MINIMUM_USABLE_FILE_SIZE_BYTES = 1000;
 
     private final Context mContext;
 
@@ -43,7 +38,7 @@ public class RinexLogger implements MeasurementListener {
 
     private static final int TOW_DECODED_MEASUREMENT_STATE_BIT = 3;
     private static final int C_TO_N0_THRESHOLD_DB_HZ = 18;
-    Boolean set_clockbias = false;
+    Boolean set_clockBias = false;
     private static double fullBiasNanos = 1.0e-9,BiasNanos = 1.0e-9;
 
     private HomeFragment.HomeUIFragmentComponent mUiFragmentComponent;
@@ -57,30 +52,29 @@ public class RinexLogger implements MeasurementListener {
         this.mContext = context;
     }
 
-    /** Start a new file logging process. */
+    /** Start a new file logging process.
+     * Source : GNSSLogger */
     public void startNewLog() {
         synchronized (mFileLock) {
+
             firstMes=true;
             mUiFragmentComponent.resetRinexCounter();
+
             String state = Environment.getExternalStorageState();
-            if (Environment.MEDIA_MOUNTED.equals(state)) {
-                //baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
-                //baseDirectory.mkdirs();
-            } else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-                logError("Cannot write to external storage.");
-                return;
-            } else {
-                logError("Cannot read external storage.");
+            if (!Environment.MEDIA_MOUNTED.equals(state)) {
+                if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+                    logError("Cannot write to external storage.");
+                } else {
+                    logError("Cannot read external storage.");
+                }
                 return;
             }
 
-            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss");
+            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss",Locale.US);
             Date now = new Date();
             String fileName = String.format("%s_%s.txt", FILE_PREFIX, formatter.format(now));
             File currentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
             String currentFilePath = currentFile.getAbsolutePath();
-
-
             BufferedWriter currentFileWriter;
             try {
                 currentFileWriter = new BufferedWriter(new FileWriter(currentFile));
@@ -88,7 +82,6 @@ public class RinexLogger implements MeasurementListener {
                 logException("Could not open file: " + currentFilePath, e);
                 return;
             }
-
 
             if (mFileWriter != null) {
                 try {
@@ -103,22 +96,6 @@ public class RinexLogger implements MeasurementListener {
             mFileWriter = currentFileWriter;
             Toast.makeText(mContext, "File opened: " + currentFilePath, Toast.LENGTH_SHORT).show();
 
-            // To make sure that files do not fill up the external storage:
-            // - Remove all empty files
-            /**
-            FileFilter filter = new RinexLogger.FileToDeleteFilter(mFile);
-            for (File existingFile : baseDirectory.listFiles(filter)) {
-                existingFile.delete();
-            }
-            // - Trim the number of files with data
-            File[] existingFiles = baseDirectory.listFiles();
-            int filesToDeleteCount = existingFiles.length - MAX_FILES_STORED;
-            if (filesToDeleteCount > 0) {
-                Arrays.sort(existingFiles);
-                for (int i = 0; i < filesToDeleteCount; ++i) {
-                    existingFiles[i].delete();
-                }
-            }**/
         }
     }
 
@@ -236,10 +213,16 @@ public class RinexLogger implements MeasurementListener {
         // EPOCH
         GnssClock gnssClock = event.getClock();
 
-
-        long gpsTimeNanos = (long) (gnssClock.getTimeNanos() - (gnssClock.getFullBiasNanos() + gnssClock.getBiasNanos()));
+        long GPSTime = gnssClock.getTimeNanos() - gnssClock.getFullBiasNanos();
         LocalDateTime gpsEpoch = LocalDateTime.of(1980, Month.JANUARY, 6, 0, 0, 0);
-        LocalDateTime gpsCalendarTime = gpsEpoch.plusNanos(gpsTimeNanos);
+        LocalDateTime gpsCalendarTime = gpsEpoch.plusNanos(GPSTime);
+
+        // Write header if first mes
+        if (firstMes) {
+            String header = rinexHeader(gpsCalendarTime);
+            writeRinexHeader(header);
+            firstMes = false;
+        }
 
         //OBS
         int numberOfMes = 0;
@@ -247,7 +230,7 @@ public class RinexLogger implements MeasurementListener {
         for (GnssMeasurement mes : event.getMeasurements()) {
 
             if (mes.getConstellationType() != GnssStatus.CONSTELLATION_GPS) {
-                continue;
+                continue; // interrupt current iteration if not a gps satellite
             }
 
             if (mes.getCn0DbHz() >= C_TO_N0_THRESHOLD_DB_HZ
@@ -255,10 +238,10 @@ public class RinexLogger implements MeasurementListener {
 
                 /*maintaining constant the 'FullBiasNanos' instead of using the instantaneous value. This avoids the 256 ns
                  jumps each 3 seconds that create a code-phase divergence due to the clock.*/
-                if (!set_clockbias) {
+                if (!set_clockBias) {
                     fullBiasNanos = gnssClock.getFullBiasNanos();
                     BiasNanos = gnssClock.getBiasNanos();
-                    set_clockbias = true;
+                    set_clockBias = true;
                 }
 
                 double tTx = mes.getReceivedSvTimeNanos();
@@ -282,11 +265,12 @@ public class RinexLogger implements MeasurementListener {
                         carrierToNoiseRatio));
                 numberOfMes = numberOfMes + 1;
             }
-
         }
 
         // Append EPOCH
-        float secondRinex = (float) (gpsCalendarTime.getSecond() + gpsCalendarTime.getNano() / 1e9);
+        double seconds = (double) gpsCalendarTime.getSecond();
+        double nanos = gpsCalendarTime.getNano() / 1e9;
+        double secondRinex = seconds + nanos;
         builder.append(String.format(Locale.US, "> %04d %02d %02d %02d %02d %10.7f %2d %2d%n",
                 gpsCalendarTime.getYear(),
                 gpsCalendarTime.getMonthValue(),
@@ -297,36 +281,26 @@ public class RinexLogger implements MeasurementListener {
         // Append OBS
         builder.append(obsStringBuilder);
 
-
-        if (firstMes) {
-            RinexDate startTime = new RinexDate(gpsCalendarTime.getYear(),
-                    gpsCalendarTime.getMonthValue(),
-                    gpsCalendarTime.getDayOfMonth(),
-                    gpsCalendarTime.getHour(),
-                    gpsCalendarTime.getMinute(),
-                    secondRinex);
-            Calendar calendar = Calendar.getInstance();
-            String header = rinexHeader(calendar, startTime);
-            writeRinexHeader(header);
-            firstMes = false;
-        }
         return builder.toString();
     }
 
-    private String rinexHeader(Calendar calendar, RinexDate startTime) {
+    private String rinexHeader(LocalDateTime startTime) {
 
         // Date info from the smartphone
         StringBuilder builder = new StringBuilder();
 
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH);
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
-        int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        int minute = calendar.get(Calendar.MINUTE);
-        int second = calendar.get(Calendar.SECOND);
+        int year = startTime.getYear();
+        int month = startTime.getMonthValue();
+        int day = startTime.getDayOfMonth();
+        int hour = startTime.getHour();
+        int minute = startTime.getMinute();
+        int second = startTime.getSecond();
+        double secondDouble = (double) startTime.getSecond();
+        double nanos = startTime.getNano() / 1e9;
+        double secondRinex = secondDouble + nanos;
 
         String dateRinex = String.format(Locale.US,"%04d%02d%02d", year, month, day);
-        String timeRinex = String.format(Locale.US,"%02d%02d%02d", hour, minute, second);
+        String timeRinex = String.format(Locale.US,"%02d%02d%02d", hour, minute, second - 18);
 
         // Header
         String[] header = {"3.03", "", "OBSERVATION DATA", "G: GPS", "RINEX VERSION / TYPE"};
@@ -334,11 +308,11 @@ public class RinexLogger implements MeasurementListener {
         String[] markerName = {"Unknown", "MARKER NAME"};
         String[] markerNumber = {"Unknown", "MARKER TYPE"};
         String[] observerAgency = {"", "OBSERVER / AGENCY"};
-        String[] recTypeVers = {"Unknown", "GnssLogger", "vx.x.x", "REC # / TYPE / VERS"};
-        String[] antType = {"", "LEIAS10", "NONE", "ANT # / TYPE"};
+        String[] recTypeVers = {"Unknown", "PrototypeDGPS", "vx.x.x", "REC # / TYPE / VERS"};
+        String[] antType = {"", "Unknown", "NONE", "ANT # / TYPE"};
         String[] approxPositionAntenna = {"Unknown", "Unknown", "", "", "APPROX POSITION XYZ"};
         String[] antennaDeltas = {"0.0000", "0.0000", "0.0000", "", "ANTENNA: DELTA H/E/N"};
-        String[] observationType = {"G", "", "4", " C1C L1C D1C S1C", "SYS / # / OBS TYPES"};
+        String[] observationType = {"G", "", "4", "C1C L1C D1C S1C", "SYS / # / OBS TYPES"};
 
         builder.append(String.format("%9s%11s%-20s%-20s%-20s%n", header[0], header[1], header[2], header[3], header[4]));
         builder.append(String.format("%-20s%-20s%-20s%-20s%n", pgmRunByDate[0], pgmRunByDate[1], pgmRunByDate[2], pgmRunByDate[3]));
@@ -351,13 +325,13 @@ public class RinexLogger implements MeasurementListener {
         builder.append(String.format("%14s%14s%14s%-18s%-20s%n", antennaDeltas[0], antennaDeltas[1], antennaDeltas[2], antennaDeltas[3], antennaDeltas[4]));
         builder.append(String.format("%1s%2s%3s%-54s%-20s%n", observationType[0], observationType[1], observationType[2], observationType[3], observationType[4]));
 
-        builder.append(String.format(Locale.US,"%6d    %02d    %02d    %02d    %02d%13.7f     %3s         %-20s%n",
-                startTime.annee,
-                startTime.mois,
-                startTime.jour,
-                startTime.heure,
-                startTime.minute,
-                startTime.seconde,
+        builder.append(String.format(Locale.US, "%6d    %02d    %02d    %02d    %02d%13.7f     %3s         %-20s%n",
+                year,
+                month,
+                day,
+                hour,
+                startTime.getMinute(),
+                secondRinex,
                 "GPS",
                 "TIME OF FIRST OBS"));
 
@@ -387,27 +361,6 @@ public class RinexLogger implements MeasurementListener {
         }
     }
 
-    public static class RinexDate {
-
-        private final int annee;
-        private final int mois;
-        private final int jour;
-        private final int heure;
-        private final int minute;
-        private final float seconde;
-
-        public RinexDate(int annee, int mois, int jour, int heure, int minute, float seconde) {
-            this.annee = annee;
-            this.mois = mois;
-            this.jour = jour;
-            this.heure = heure;
-            this.minute = minute;
-            this.seconde = seconde;
-        }
-
-    }
-
-
     private String getConstellationSystemIdentifierRinex(int id) {
         switch (id) {
             case 1:
@@ -424,34 +377,6 @@ public class RinexLogger implements MeasurementListener {
                 return "E";
             default:
                 return "UNKNOWN";
-        }
-    }
-
-    /**
-     * Implements a {@link FileFilter} to delete files that are not in the {@link
-     * RinexLogger.FileToDeleteFilter#mRetainedFiles}.
-     */
-    private static class FileToDeleteFilter implements FileFilter {
-        private final List<File> mRetainedFiles;
-
-        public FileToDeleteFilter(File... retainedFiles) {
-            this.mRetainedFiles = Arrays.asList(retainedFiles);
-        }
-
-        /**
-         * Returns {@code true} to delete the file, and {@code false} to keep the file.
-         *
-         * <p>Files are deleted if they are not in the {@link RinexLogger.FileToDeleteFilter#mRetainedFiles} list.
-         */
-        @Override
-        public boolean accept(File pathname) {
-            if (pathname == null || !pathname.exists()) {
-                return false;
-            }
-            if (mRetainedFiles.contains(pathname)) {
-                return false;
-            }
-            return pathname.length() < MINIMUM_USABLE_FILE_SIZE_BYTES;
         }
     }
 }
