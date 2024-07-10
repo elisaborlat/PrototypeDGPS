@@ -32,28 +32,22 @@ import android.widget.Toast;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 
-/** A GNSS logger to store information to a file. */
+/** A GNSS logger to store information to a file.
+ * Source : GNSSLogger*/
 public class FileLogger implements MeasurementListener {
 
     private static final String TAG = "FileLogger";
-    private static final String FOLDER_PREFIX = "gnss_log";
     private static final String FILE_PREFIX = "raw";
     private static final String ERROR_WRITING_FILE = "Problem writing to file.";
     private static final String COMMENT_START = "# ";
     private static final char RECORD_DELIMITER = ',';
     private static final String VERSION_TAG = "Version: ";
-
-    private static final int MAX_FILES_STORED = 100;
-    private static final int MINIMUM_USABLE_FILE_SIZE_BYTES = 1000;
 
     private final Context mContext;
 
@@ -76,15 +70,13 @@ public class FileLogger implements MeasurementListener {
     public void startNewLog() {
         mUiFragmentComponent.resetRawCounter();
         synchronized (mFileLock) {
-            File baseDirectory;
             String state = Environment.getExternalStorageState();
-            if (Environment.MEDIA_MOUNTED.equals(state)) {
-                baseDirectory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER_PREFIX);
-            } else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-                logError("Cannot write to external storage.");
-                return;
-            } else {
-                logError("Cannot read external storage.");
+            if (!Environment.MEDIA_MOUNTED.equals(state)) {
+                if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+                    logError("Cannot write to external storage.");
+                } else {
+                    logError("Cannot read external storage.");
+                }
                 return;
             }
 
@@ -170,21 +162,6 @@ public class FileLogger implements MeasurementListener {
             mFile = currentFile;
             mFileWriter = currentFileWriter;
 
-            // To make sure that files do not fill up the external storage:
-            // - Remove all empty files
-            FileFilter filter = new FileToDeleteFilter(mFile);
-            for (File existingFile : baseDirectory.listFiles(filter)) {
-                existingFile.delete();
-            }
-            // - Trim the number of files with data
-            File[] existingFiles = baseDirectory.listFiles();
-            int filesToDeleteCount = existingFiles.length - MAX_FILES_STORED;
-            if (filesToDeleteCount > 0) {
-                Arrays.sort(existingFiles);
-                for (int i = 0; i < filesToDeleteCount; ++i) {
-                    existingFiles[i].delete();
-                }
-            }
         }
     }
 
@@ -398,31 +375,5 @@ public class FileLogger implements MeasurementListener {
         Toast.makeText(mContext, errorMessage, Toast.LENGTH_LONG).show();
     }
 
-    /**
-     * Implements a {@link FileFilter} to delete files that are not in the {@link
-     * FileToDeleteFilter#mRetainedFiles}.
-     */
-    private static class FileToDeleteFilter implements FileFilter {
-        private final List<File> mRetainedFiles;
 
-        public FileToDeleteFilter(File... retainedFiles) {
-            this.mRetainedFiles = Arrays.asList(retainedFiles);
-        }
-
-        /**
-         * Returns {@code true} to delete the file, and {@code false} to keep the file.
-         *
-         * <p>Files are deleted if they are not in the {@link FileToDeleteFilter#mRetainedFiles} list.
-         */
-        @Override
-        public boolean accept(File pathname) {
-            if (pathname == null || !pathname.exists()) {
-                return false;
-            }
-            if (mRetainedFiles.contains(pathname)) {
-                return false;
-            }
-            return pathname.length() < MINIMUM_USABLE_FILE_SIZE_BYTES;
-        }
-    }
 }

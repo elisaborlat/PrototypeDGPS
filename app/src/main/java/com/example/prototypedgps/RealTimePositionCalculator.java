@@ -60,9 +60,13 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
     private final Object mFileLockConstraint = new Object();
 
+    private final Object mFileLockPos = new Object();
+
     private static final String FILE_PREFIX = "results";
 
     private static final String FILE_PREFIX_CONSTRAINT = "results_constraint";
+
+    private static final String FILE_PREFIX_POS= "results_pos";
 
     private static final String TAG = "ResultsLogger";
 
@@ -72,10 +76,13 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
     private BufferedWriter mFileWriterConstraint;
 
+    private BufferedWriter mFileWriterPos;
 
     private File mFile;
 
     private File mFileConstraint;
+
+    private File mFilePos;
 
     private final Context mContext;
 
@@ -638,6 +645,12 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
         // Empirical standard deviation of unit weight
         double s0 = Math.sqrt(v.transpose().multiply(P).multiply(v).getEntry(0, 0) / (nbrObservations - nbrUnknowns));
+
+        if(s0/sigma0>20.0){
+            System.out.println("Problem");
+            return;
+        }
+
         // Variance-covariance matrix of estimated parameters
         RealMatrix Kxx = Qxx.scalarMultiply(s0);
 
@@ -678,7 +691,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
         double sigmaHeight = Math.sqrt(KxxTopo.getEntry(2,2));
 
         // Update res in UI
-        double[] MN95 = CHTRS95toMN95(X_Rover);
+        double[] MN95 = CHTRS95toMN95hBessel(X_Rover);
         mUiFragmentComponent.updateEastNorthHBessel(MN95[0], MN95[1], MN95[2]);
         mUiFragmentComponent.updateRes(nbrSatObserved, nbrObservationGps, nbrObservations, PDOP, VDOP, HDOP, (s0/sigma0), sigmaEast, sigmaNorth, sigmaHeight);
         mUiFragmentComponent.updateDeltaGroundTrue(X_Rover);
@@ -726,6 +739,26 @@ public class RealTimePositionCalculator implements MeasurementListener {
                 if (mUiFragmentComponent != null) {
                     mUiFragmentComponent.incrementDetailedResultsCounter();
                 }
+            } catch (IOException e) {
+                logException(ERROR_WRITING_FILE, e);
+            }
+        }
+
+        synchronized (mFileLockPos) {
+            if (mFileWriterPos == null) {
+                return;
+            }
+            try {
+                double[] MN95Rover = RealTimePositionCalculator.CHTRS95toMN95hBessel(X_Rover);
+                char RECORD_DELIMITER = ',';
+                String builder =  timeOfRover.getGpsTimeCalendar().toFormattedDateTime() +
+                        RECORD_DELIMITER +
+                        String.format(Locale.US, "%.3f", MN95Rover[0]) +
+                        RECORD_DELIMITER +
+                        String.format(Locale.US, "%.3f", MN95Rover[1]) +
+                        RECORD_DELIMITER +
+                        String.format(Locale.US, "%.3f", MN95Rover[2]) + "\n";
+                mFileWriterPos.write(builder);
             } catch (IOException e) {
                 logException(ERROR_WRITING_FILE, e);
             }
@@ -1271,7 +1304,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             Date currentdate = new Date();
 
-            double[] MN95 = CHTRS95toMN95(X_Rover);
+            double[] MN95 = CHTRS95toMN95hBessel(X_Rover);
 
             RealMatrix posBaseStation = baseStation.getStationaryAntenna();
             double xBaseStation = posBaseStation.getEntry(0,0);
@@ -1348,7 +1381,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             stringBuilder.append(estimatedParam);
 
-            double[] MN95Rover = RealTimePositionCalculator.CHTRS95toMN95(X_Rover);
+            double[] MN95Rover = RealTimePositionCalculator.CHTRS95toMN95hBessel(X_Rover);
 
             // Derived parameters, coordinates MN95
             if (!isConstraint) {
@@ -1645,7 +1678,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
         return X_WGS84;
     }
 
-    public static double[] CHTRS95toMN95(RealMatrix X) {
+    public static double[] CHTRS95toMN95hBessel(RealMatrix X) {
 
         // Transformation CHTRS95 => CH1903+
         RealMatrix t = new Array2DRowRealMatrix(new double[][]{
@@ -1733,6 +1766,34 @@ public class RealTimePositionCalculator implements MeasurementListener {
 
             mFileConstraint = currentFile;
             mFileWriterConstraint = currentFileWriter;
+            Toast.makeText(mContext, "File opened: " + currentFilePath, Toast.LENGTH_SHORT).show();
+        }
+        synchronized (mFileLockPos){
+            SimpleDateFormat formatter = new SimpleDateFormat("yyy_MM_dd_HH_mm_ss", Locale.US);
+            Date now = new Date();
+            String fileName = String.format("%s_%s.txt", FILE_PREFIX_POS, formatter.format(now));
+            File currentFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName);
+            String currentFilePath = currentFile.getAbsolutePath();
+
+            BufferedWriter currentFileWriter;
+            try {
+                currentFileWriter = new BufferedWriter(new FileWriter(currentFile));
+            } catch (IOException e) {
+                logException("Could not open file: " + currentFilePath, e);
+                return;
+            }
+
+            if (mFileWriterPos != null) {
+                try {
+                    mFileWriterPos.close();
+                } catch (IOException e) {
+                    logException("Unable to close all file streams.", e);
+                    return;
+                }
+            }
+
+            mFilePos = currentFile;
+            mFileWriterPos = currentFileWriter;
             Toast.makeText(mContext, "File opened: " + currentFilePath, Toast.LENGTH_SHORT).show();
         }
     }
@@ -1908,7 +1969,7 @@ public class RealTimePositionCalculator implements MeasurementListener {
             }
         }
 
-        if (mFileConstraint == null) {
+        if (mFileConstraint != null) {
             if (mFileWriterConstraint != null) {
                 try {
                     mFileWriterConstraint.flush();
@@ -1918,6 +1979,20 @@ public class RealTimePositionCalculator implements MeasurementListener {
                     logException("Unable to close mFileWriterConstraint streams.", e);
                 } finally {
                     mFileWriterConstraint = null;
+                }
+            }
+        }
+
+        if (mFilePos != null) {
+            if (mFileWriterPos != null) {
+                try {
+                    mFileWriterPos.flush();
+                    mFileWriterPos.close();
+                    mFileWriterPos = null;
+                } catch (IOException e) {
+                    logException("Unable to close mFileWriterPos streams.", e);
+                } finally {
+                    mFileWriterPos = null;
                 }
             }
         }

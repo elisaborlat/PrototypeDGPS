@@ -8,9 +8,9 @@
     <string name="not_connected">Not connected</string>
     <string name="coordinates">Coordinates</string>
     <string name="not_decoded">Not decoded</string>
-    <string name="e_mn95">E MN95:</string>
-    <string name="n_mn95">N MN95:</string>
-    <string name="h_bessel">h Bessel:</string>
+    <string name="e_mn95">E MN95</string>
+    <string name="n_mn95">N MN95</string>
+    <string name="h_bessel">h Bessel</string>
     <string name="pdop">PDOP:</string>
     <string name="connected">Connected</string>
     <string name="log_raw_data">Log raw data</string>
@@ -18,4 +18,12 @@
     <string name="log_dgps_detailed_results">Log DGPS results</string>
     <string name="chtrs">CHTRS</string>
     <string name="sats"># Sats:</string>
+    <string name="x_chtrs">x CHTRS</string>
+    <string name="y_chtrs">y CHTRS</string>
+    <string name="z_chtrs">z CHTRS</string>
+    <string name="constrained_calculation">Constrained calculation</string>
+    <string name="pil6170">PIL6170</string>
+    <string name="d01">D01</string>
+    <string name="start_log">Start Log</string>
+    <string name="log_rinex">Log RINEX</string>
 </resources>

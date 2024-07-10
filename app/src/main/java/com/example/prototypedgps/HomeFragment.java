@@ -131,6 +131,7 @@ public class HomeFragment extends Fragment {
             }
         });
 
+        // Set coordinate PIL6170
         binding.buttonpil6170.setOnClickListener(v -> {
             // isChecked = chtrs
             if (binding.toggleButton.isChecked()) {
@@ -151,12 +152,13 @@ public class HomeFragment extends Fragment {
 
         });
 
+        // Set coordinates D01
         binding.buttond01.setOnClickListener(v -> {
             // isChecked = chtrs
             if (binding.toggleButton.isChecked()) {
-                String coordinateX = "4346400.677";
-                String coordinateY = "507454.190";
-                String coordinateZ = "4625380.301";
+                String coordinateX = "4346400.051";
+                String coordinateY = "507454.117";
+                String coordinateZ = "4625379.630";
                 binding.editTextNumberDecimalCoordx.setText(coordinateX);
                 binding.editTextNumberDecimalCoordy.setText(coordinateY);
                 binding.editTextNumberDecimalCoordz.setText(coordinateZ);
@@ -179,7 +181,7 @@ public class HomeFragment extends Fragment {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 boolean allFieldsFilled = allCoordinateFieldsFilled();
-                binding.switchRinex2.setEnabled(allFieldsFilled);
+                binding.switchConstrained.setEnabled(allFieldsFilled);
             }
 
             @Override
@@ -194,43 +196,53 @@ public class HomeFragment extends Fragment {
 
         // Add a listener to handle toggle changes
         binding.toggleButton.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (allCoordinateFieldsFilled()) {
-                double xValue = Double.parseDouble(binding.editTextNumberDecimalCoordx.getText().toString());
-                double yValue = Double.parseDouble(binding.editTextNumberDecimalCoordy.getText().toString());
-                double zValue = Double.parseDouble(binding.editTextNumberDecimalCoordz.getText().toString());
-
-                // MN95 -> CHTRS
+                // MN95, Bessel -> CHTRS
                 if (isChecked) {
-                    binding.textView15.setText("x");
-                    binding.textView20.setText("y");
-                    binding.textView21.setText("z");
-                    double[] X = RealTimePositionCalculator.MN95toCHTRS(xValue, yValue, zValue);
+                    binding.textView15.setText(R.string.x_chtrs);
+                    binding.editTextNumberDecimalCoordx.setHint(R.string.x_chtrs);
+                    binding.textView20.setText(R.string.y_chtrs);
+                    binding.editTextNumberDecimalCoordy.setHint(R.string.y_chtrs);
+                    binding.textView21.setText(R.string.z_chtrs);
+                    binding.editTextNumberDecimalCoordz.setHint(R.string.z_chtrs);
+                    if (allCoordinateFieldsFilled()) {
+                        double xValue = Double.parseDouble(binding.editTextNumberDecimalCoordx.getText().toString());
+                        double yValue = Double.parseDouble(binding.editTextNumberDecimalCoordy.getText().toString());
+                        double zValue = Double.parseDouble(binding.editTextNumberDecimalCoordz.getText().toString());
+
+
+
+                        double[] X = RealTimePositionCalculator.MN95toCHTRS(xValue, yValue, zValue);
                     String x = String.format(Locale.US, "%.3f", X[0]);
                     String y = String.format(Locale.US, "%.3f", X[1]);
                     String z = String.format(Locale.US, "%.3f", X[2]);
                     binding.editTextNumberDecimalCoordx.setText(x);
                     binding.editTextNumberDecimalCoordy.setText(y);
-                    binding.editTextNumberDecimalCoordz.setText(z);
+                    binding.editTextNumberDecimalCoordz.setText(z);}
                 } else {
+                    binding.textView15.setText(R.string.e_mn95);
+                    binding.textView20.setText(R.string.n_mn95);
+                    binding.textView21.setText(R.string.h_bessel);
+                    binding.editTextNumberDecimalCoordx.setHint(R.string.e_mn95);
+                    binding.editTextNumberDecimalCoordy.setHint(R.string.n_mn95);
+                    binding.editTextNumberDecimalCoordz.setHint(R.string.h_bessel);
+                    if (allCoordinateFieldsFilled()) {
+                        double xValue = Double.parseDouble(binding.editTextNumberDecimalCoordx.getText().toString());
+                        double yValue = Double.parseDouble(binding.editTextNumberDecimalCoordy.getText().toString());
+                        double zValue = Double.parseDouble(binding.editTextNumberDecimalCoordz.getText().toString());
 
-                    binding.textView15.setText("E");
-                    binding.textView20.setText("N");
-                    binding.textView21.setText("h");
                     RealMatrix X = new Array2DRowRealMatrix(new double[][]{
                             {xValue},
                             {yValue},
                             {zValue}
                     });
-                    double[] MN95 = RealTimePositionCalculator.CHTRS95toMN95(X);
+                    double[] MN95 = RealTimePositionCalculator.CHTRS95toMN95hBessel(X);
                     String E = String.format(Locale.US, "%.3f", MN95[0]);
                     String N = String.format(Locale.US, "%.3f", MN95[1]);
                     String h = String.format(Locale.US, "%.3f", MN95[2]);
                     binding.editTextNumberDecimalCoordx.setText(E);
                     binding.editTextNumberDecimalCoordy.setText(N);
-                    binding.editTextNumberDecimalCoordz.setText(h);
+                    binding.editTextNumberDecimalCoordz.setText(h);}
                 }
-
-            }
         });
 
         return binding.getRoot();
@@ -363,7 +375,7 @@ public class HomeFragment extends Fragment {
         public boolean isComputeConstraint() {
             Activity activity = getActivity();
             if (activity != null) {
-                return binding.switchRinex2.isChecked();
+                return binding.switchConstrained.isChecked();
             }
             return false;
         }
@@ -403,8 +415,8 @@ public class HomeFragment extends Fragment {
                         binding.textViewDeltaGroundTrueY.setText(String.format(Locale.US, "%.3f m", deltaGroundTrue.getEntry(1, 0)));
                         binding.textViewDeltaGroundTrueZ.setText(String.format(Locale.US, "%.3f m", deltaGroundTrue.getEntry(2, 0)));
                     } else {
-                        double[] MN95GroundTrue = RealTimePositionCalculator.CHTRS95toMN95(getCoordinateConstrainedPoint());
-                        double[] MN95Compute = RealTimePositionCalculator.CHTRS95toMN95(X_Rover);
+                        double[] MN95GroundTrue = RealTimePositionCalculator.CHTRS95toMN95hBessel(getCoordinateConstrainedPoint());
+                        double[] MN95Compute = RealTimePositionCalculator.CHTRS95toMN95hBessel(X_Rover);
                         double deltaGroundTrueEast = MN95GroundTrue[0] - MN95Compute[0];
                         double deltaGroundTrueNorth = MN95GroundTrue[1] - MN95Compute[1];
                         double deltaGroundTrueHeight = MN95GroundTrue[2] - MN95Compute[2];

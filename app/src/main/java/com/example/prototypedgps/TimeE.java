@@ -2,7 +2,6 @@ package com.example.prototypedgps;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 
 public class TimeE {
 
@@ -234,7 +233,6 @@ public class TimeE {
         return mjd;
     }
 
-
     public static class FormatTime {
 
         public int integerPart;
@@ -295,11 +293,6 @@ public class TimeE {
         }
         public int getMonth() {
             return month;
-        }
-
-        public String toString(){
-
-            return String.format(Locale.US,"%02d-%02d-%d %02d:%02d:%-6.3f", day, month, year, hour, minutes, sec);
         }
 
         public String toFormattedDateTime(){

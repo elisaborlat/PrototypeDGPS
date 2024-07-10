@@ -82,21 +82,21 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="end"
-                            android:text="@string/e_mn95" />
+                            android:text="E MN95:" />
 
                         <TextView
                             android:id="@+id/textView4"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="end"
-                            android:text="@string/n_mn95" />
+                            android:text="N MN95:"/>
 
                         <TextView
                             android:id="@+id/textView5"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="end"
-                            android:text="@string/h_bessel" />
+                            android:text="h Bessel:" />
 
                         <TextView
                             android:id="@+id/textView6"
@@ -303,7 +303,12 @@
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
@@ -372,7 +377,7 @@
                 android:layout_width="208dp"
                 android:layout_height="48dp"
                 android:layout_weight="0"
-                android:text="Log RINEX" />
+                android:text="@string/log_rinex" />
 
             <TextView
                 android:id="@+id/textView"
@@ -392,7 +397,7 @@
                 android:layout_width="218dp"
                 android:layout_height="wrap_content"
                 android:enabled="false"
-                android:text="Start Log" />
+                android:text="@string/start_log" />
 
             <Button
                 android:id="@+id/button_stop_send"
@@ -413,7 +418,6 @@
                 android:id="@+id/toggleButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
                 android:checked="true"
                 android:textOff="MN95/hBessel"
                 android:textOn="@string/chtrs" />
@@ -436,13 +440,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="x" />
+                    android:text="@string/x_chtrs" />
 
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordx"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp"
                     android:ems="10"
+                    android:hint="@string/x_chtrs"
                     android:inputType="numberDecimal"
                     android:textSize="14sp" />
 
@@ -463,13 +468,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="y" />
+                    android:text="@string/y_chtrs" />
 
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordy"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp"
                     android:ems="10"
+                    android:hint="@string/y_chtrs"
                     android:inputType="numberDecimal"
                     android:textSize="14sp" />
 
@@ -492,13 +498,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="z" />
+                    android:text="@string/z_chtrs" />
 
                 <EditText
                     android:id="@+id/editTextNumberDecimal_coordz"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="48dp"
                     android:ems="10"
+                    android:hint="@string/z_chtrs"
                     android:inputType="numberDecimal"
                     android:textSize="14sp" />
 
@@ -517,27 +524,26 @@
             android:orientation="horizontal">
 
             <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchRinex2"
-                android:layout_width="200dp"
+                android:id="@+id/switchConstrained"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="0dp"
-                android:layout_weight="0"
                 android:enabled="false"
-                android:text="Constrained calculation" />
+                android:text="@string/constrained_calculation" />
 
             <TextView
                 android:id="@+id/buttonpil6170"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
-                android:text="PIL6170" />
+                android:text="@string/pil6170" />
 
             <TextView
                 android:id="@+id/buttond01"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
-                android:text="D01" />
+                android:text="@string/d01" />
         </LinearLayout>
 
     </LinearLayout>
