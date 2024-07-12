@@ -1,36 +1,31 @@
 package com.example.prototypedgps;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 public class TimeE {
 
-    private final long MILLISECONDS_IN_WEEK = 604800000L; // 7 jours en milliseconds
-    private final double gpsTimeMilliseconds; // GPS Time in milliseconds since the beginning of gps time
     private final Cal gpsTimeCalendar;
     private final FormatTime gps;
 
     private final FormatTime mjd;
 
-    public TimeE(Cal gpsTimeCalendar){
-        this.gpsTimeCalendar = gpsTimeCalendar;
+    public TimeE(LocalDateTime gpsLocalDateTime){
+        double nanos = gpsLocalDateTime.getNano() / 1e9;
+        double secondDouble = gpsLocalDateTime.getSecond() + nanos;
+        this.gpsTimeCalendar = new Cal(gpsLocalDateTime.getYear(),
+                gpsLocalDateTime.getMonthValue(),
+                gpsLocalDateTime.getDayOfMonth(),
+                gpsLocalDateTime.getHour(),
+                gpsLocalDateTime.getMinute(),
+                secondDouble);
         this.gps = cal2gps(gpsTimeCalendar);
         this.mjd = cal2mjd(gpsTimeCalendar);
-        this.gpsTimeMilliseconds =  gps.integerPart*MILLISECONDS_IN_WEEK + gps.doublePart*1000;
     }
 
     public TimeE(FormatTime mjd) {
         this.gpsTimeCalendar = mjd2cal(mjd);
         this.gps = mjd2gps(mjd);
-        this.gpsTimeMilliseconds = gps.integerPart*MILLISECONDS_IN_WEEK + gps.doublePart*1000 ;
         this.mjd = mjd;
-    }
-
-    public TimeE(double gpsTimeMilliseconds) {
-        this.gpsTimeMilliseconds = gpsTimeMilliseconds;
-        this.gps = gpsTimeMilliseconds2gps(gpsTimeMilliseconds);
-        this.gpsTimeCalendar = gps2cal(gps);
-        this.mjd = gps2mjd(gps);
     }
 
     private Cal gps2cal(FormatTime gps) {
@@ -50,21 +45,6 @@ public class TimeE {
 
         double jdSecOfDay = (jdDayTemp - jdDay) * 24.0 * 3600.0;
         return new FormatTime(jdDay, jdSecOfDay);
-    }
-
-    public double getGpsTimeMilliseconds() {
-        return gpsTimeMilliseconds;
-    }
-
-
-
-
-    public Cal getGpsTimeCalendar() {
-        return gpsTimeCalendar;
-    }
-
-    public int getGpsWeek() {
-        return gps.integerPart;
     }
 
 
@@ -206,14 +186,6 @@ public class TimeE {
         return new Cal(year, month, day, hour, minute, second);
     }
 
-    private FormatTime gpsTimeMilliseconds2gps(double gpsTimeMilliseconds){
-        long week = (long) gpsTimeMilliseconds / MILLISECONDS_IN_WEEK ;
-        int weekint = (int) week;
-        double sec = (gpsTimeMilliseconds - week*MILLISECONDS_IN_WEEK)/1000;
-
-        return new FormatTime(weekint, sec);
-    }
-
     private FormatTime gps2mjd(FormatTime gps){
         Cal temp = gps2cal(gps);
         FormatTime temp2 = cal2mjd(temp);
@@ -222,11 +194,6 @@ public class TimeE {
         double mjdSecOfDay = temp2.doublePart;
 
         return new FormatTime(mjdDay, mjdSecOfDay);
-    }
-
-
-    public FormatTime getGps() {
-        return gps;
     }
 
     public FormatTime getMjd() {
@@ -269,7 +236,6 @@ public class TimeE {
             this.hour = hour;
             this.minutes = minutes;
             this.sec = sec;
-
         }
 
         public double getSec() {
@@ -295,15 +261,5 @@ public class TimeE {
             return month;
         }
 
-        public String toFormattedDateTime(){
-             int second = (int) sec;
-             int millis = (int) ((sec - second) * 1000);
-                LocalDateTime dateTime = LocalDateTime.of(year, month, day, hour, minutes, second,millis * 1_000_000);
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");
-            return dateTime.format(formatter);
-        }
-
     }
-
-
 }

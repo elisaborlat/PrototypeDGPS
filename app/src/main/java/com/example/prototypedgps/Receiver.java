@@ -14,7 +14,8 @@ public class Receiver {
     }
 
     public ArrayList<Observations> getEpochsArrayList() {
-            return epochsArrayList;
+        synchronized (this){
+            return new ArrayList<>(epochsArrayList);}
 
     }
 

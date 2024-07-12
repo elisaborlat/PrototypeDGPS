@@ -28,6 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.Locale;
 import java.util.TimeZone;
 
 
@@ -47,7 +48,7 @@ public class Time {
     private Date[] leapDates;
     private Calendar gc =  GregorianCalendar.getInstance();
     TimeZone zone = TimeZone.getTimeZone("GMT Time");
-    DateFormat df = new SimpleDateFormat("yyyy MM dd HH mm ss.SSS");
+    DateFormat df = new SimpleDateFormat("yyyy MM dd HH mm ss.SSS", Locale.US);
 
     void initleapDates() throws ParseException{
         leapDates = new Date[19];

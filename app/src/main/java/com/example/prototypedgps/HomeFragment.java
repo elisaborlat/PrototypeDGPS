@@ -436,6 +436,15 @@ public class HomeFragment extends Fragment {
             return false;
 
         }
+
+        public void setGpsTime(String gpsTimeFormatted) {
+            handler.post(() -> {
+                Activity activity = getActivity();
+                if (activity != null) {
+                    binding.textViewGpsTimeValue.setText(gpsTimeFormatted);
+                }
+            });
+        }
     }
 
 }
