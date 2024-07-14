@@ -211,7 +211,7 @@ public class HomeFragment extends Fragment {
 
 
 
-                        double[] X = RealTimePositionCalculator.MN95toCHTRS(xValue, yValue, zValue);
+                        double[] X = TransformerCoordinate.MN95toCHTRS(xValue, yValue, zValue);
                     String x = String.format(Locale.US, "%.3f", X[0]);
                     String y = String.format(Locale.US, "%.3f", X[1]);
                     String z = String.format(Locale.US, "%.3f", X[2]);
@@ -235,7 +235,7 @@ public class HomeFragment extends Fragment {
                             {yValue},
                             {zValue}
                     });
-                    double[] MN95 = RealTimePositionCalculator.CHTRS95toMN95hBessel(X);
+                    double[] MN95 = TransformerCoordinate.CHTRS95toMN95hBessel(X);
                     String E = String.format(Locale.US, "%.3f", MN95[0]);
                     String N = String.format(Locale.US, "%.3f", MN95[1]);
                     String h = String.format(Locale.US, "%.3f", MN95[2]);
@@ -393,7 +393,7 @@ public class HomeFragment extends Fragment {
                 });
             } else {
                 //Transform current MN95 coordinate to CHTRS
-                double[] X_CHTRS = RealTimePositionCalculator.MN95toCHTRS(coordinateX, coordinateY, coordinateZ);
+                double[] X_CHTRS = TransformerCoordinate.MN95toCHTRS(coordinateX, coordinateY, coordinateZ);
                 return new Array2DRowRealMatrix(new double[][]{
                         {X_CHTRS[0]},
                         {X_CHTRS[1]},
@@ -415,8 +415,8 @@ public class HomeFragment extends Fragment {
                         binding.textViewDeltaGroundTrueY.setText(String.format(Locale.US, "%.3f m", deltaGroundTrue.getEntry(1, 0)));
                         binding.textViewDeltaGroundTrueZ.setText(String.format(Locale.US, "%.3f m", deltaGroundTrue.getEntry(2, 0)));
                     } else {
-                        double[] MN95GroundTrue = RealTimePositionCalculator.CHTRS95toMN95hBessel(getCoordinateConstrainedPoint());
-                        double[] MN95Compute = RealTimePositionCalculator.CHTRS95toMN95hBessel(X_Rover);
+                        double[] MN95GroundTrue = TransformerCoordinate.CHTRS95toMN95hBessel(getCoordinateConstrainedPoint());
+                        double[] MN95Compute = TransformerCoordinate.CHTRS95toMN95hBessel(X_Rover);
                         double deltaGroundTrueEast = MN95GroundTrue[0] - MN95Compute[0];
                         double deltaGroundTrueNorth = MN95GroundTrue[1] - MN95Compute[1];
                         double deltaGroundTrueHeight = MN95GroundTrue[2] - MN95Compute[2];

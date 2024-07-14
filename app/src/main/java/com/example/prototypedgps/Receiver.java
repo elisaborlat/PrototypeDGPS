@@ -5,18 +5,20 @@ import java.util.ArrayList;
 public class Receiver {
 
     private final ArrayList<Observations> epochsArrayList = new ArrayList<>();
-
+    private final Object lock = new Object();
     public Receiver() {
     }
 
-    public void addEpoch(Observations observations){
-            epochsArrayList.add(observations);
+    public ArrayList<Observations> getEpochsArrayList() {
+        synchronized (lock) {
+            return new ArrayList<>(epochsArrayList);
+        }
     }
 
-    public ArrayList<Observations> getEpochsArrayList() {
-        synchronized (this){
-            return new ArrayList<>(epochsArrayList);}
-
+    public void addEpoch(Observations observation) {
+        synchronized (lock) {
+            epochsArrayList.add(observation);
+        }
     }
 
 }
