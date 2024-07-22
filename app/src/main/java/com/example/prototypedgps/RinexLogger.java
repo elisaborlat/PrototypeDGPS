@@ -253,14 +253,15 @@ public class RinexLogger implements MeasurementListener {
                 String constellationId = getConstellationSystemIdentifierRinex(mes.getConstellationType());
 
                 double carrierToNoiseRatio = mes.getCn0DbHz();
-                double doppler = -mes.getPseudorangeRateMetersPerSecond() / (Constants.SPEED_OF_LIGHT / mes.getCarrierFrequencyHz());
+                double doppler = - mes.getPseudorangeRateMetersPerSecond() / (Constants.SPEED_OF_LIGHT / mes.getCarrierFrequencyHz());
+
                 double carrier = mes.getAccumulatedDeltaRangeMeters() / (Constants.SPEED_OF_LIGHT / mes.getCarrierFrequencyHz());
 
-                obsStringBuilder.append(String.format(Locale.US, "%1s%02d%14.3f  %14.3f  %14.3f  %14.3f%n",
+                obsStringBuilder.append(String.format(Locale.US, "%1s%02d%14.3f  %14s  %14.3f  %14.3f%n",
                         constellationId,
                         satId,
                         pseudorange,
-                        carrier,
+                        "",
                         doppler,
                         carrierToNoiseRatio));
                 numberOfMes = numberOfMes + 1;
@@ -312,7 +313,7 @@ public class RinexLogger implements MeasurementListener {
         String[] antType = {"", "Unknown", "NONE", "ANT # / TYPE"};
         String[] approxPositionAntenna = {"Unknown", "Unknown", "", "", "APPROX POSITION XYZ"};
         String[] antennaDeltas = {"0.0000", "0.0000", "0.0000", "", "ANTENNA: DELTA H/E/N"};
-        String[] observationType = {"G", "", "4", "C1C L1C D1C S1C", "SYS / # / OBS TYPES"};
+        String[] observationType = {"G", "", " 4" ,  " C1C L1C D1C S1C", "SYS / # / OBS TYPES"};
 
         builder.append(String.format("%9s%11s%-20s%-20s%-20s%n", header[0], header[1], header[2], header[3], header[4]));
         builder.append(String.format("%-20s%-20s%-20s%-20s%n", pgmRunByDate[0], pgmRunByDate[1], pgmRunByDate[2], pgmRunByDate[3]));
